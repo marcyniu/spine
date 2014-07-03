@@ -1,0 +1,21 @@
+{
+    "name": "lancerushing/spine",
+    "description": "Spine Framework.",
+    "keywords": ["framework"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Lance Rushing",
+            "email": "lancerushing@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"
+
+    },
+    "autoload": {
+        "classmap": [
+            "src/"
+        ]
+    }
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+
+<phpunit
+        convertErrorsToExceptions="true"
+        convertNoticesToExceptions="true"
+        convertWarningsToExceptions="true"
+        verbose="true"
+        bootstrap="bootstrap.php"
+        >
+    <filter>
+        <whitelist>
+            <directory suffix=".php">../src</directory>
+
+            <exclude>
+                <directory>../src/vendor</directory>
+                <file>../src/bootstrap.php</file>
+                <file>../src/user_setup.php</file>
+            </exclude>
+        </whitelist>
+
+    </filter>
+</phpunit>
