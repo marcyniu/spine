@@ -1,7 +1,8 @@
 {
     "name": "lancerushing/spine",
-    "description": "Spine Framework.",
-    "keywords": ["framework"],
+    "description": "Spine - A minimal PHP MVC library.",
+    "keywords": ["mvc", "framework", "library"],
+    "type": "library",
     "license": "MIT",
     "authors": [
         {
