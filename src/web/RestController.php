@@ -46,11 +46,11 @@ abstract class RestController extends BaseController implements ControllerInterf
                 }
                 break;
             case 'DELETE':
-                if ($this->request->resourceIdGiven()) {
-                    $this->delete();
-                } else {
-                    throw new HttpMethodNotAllowedException("DELETE is invalid without resource identifier");
-                }
+//				if ($this->request->resourceIdGiven()) {
+                $this->delete();
+//				} else {
+//					throw new HttpMethodNotAllowedException("DELETE is invalid without resource identifier");
+//				}
                 break;
             case 'OPTIONS':
                 $this->options();

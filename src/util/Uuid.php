@@ -2,14 +2,16 @@
 
 namespace Spine;
 
-class UUID {
+class UUID
+{
 
     /**
      * @see    http://stackoverflow.com/questions/2040240/php-function-to-generate-v4-uuid
      * @author http://stackoverflow.com/users/1338292/jack
      * @return string
      */
-    public static function v4() {
+    public static function v4()
+    {
         $data = openssl_random_pseudo_bytes(16);
 
         $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // set version to 0100

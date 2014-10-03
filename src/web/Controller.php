@@ -59,7 +59,7 @@ abstract class Controller extends BaseController implements ControllerInterface
      */
     protected function head()
     {
-        throw new HttpMethodNotAllowedException();
+        $this->response->sendMethodNotAllowed();
     }
 
     /**
@@ -92,7 +92,7 @@ abstract class Controller extends BaseController implements ControllerInterface
      */
     protected function options()
     {
-        throw new HttpMethodNotAllowedException();
+        $this->response->sendMethodNotAllowed();
     }
 
     /**

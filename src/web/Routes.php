@@ -51,20 +51,7 @@ class Routes
             }
         }
 
-        return $this->fallback($path);
-    }
-
-    /**
-     * Extend if needed
-     *
-     * @param string $path
-     *
-     * @throws HttpNotFoundException
-     * @return string ClassName
-     */
-    protected function fallback($path)
-    {
-        throw new HttpNotFoundException(get_class($this) . " - Route '$path' not found.");
+        return false;
     }
 
     /**

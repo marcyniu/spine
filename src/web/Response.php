@@ -6,6 +6,7 @@ namespace Spine\Web;
  */
 class Response
 {
+    private $p3pSent = false;
 
     /**
      * Redirect request.
@@ -119,7 +120,7 @@ class Response
      *
      * @return void
      */
-    public function sendNoContent()
+    public function sendNoContentHeader()
     {
         $this->sendHeader('HTTP/1.1 204 No Content', true, 204);
     }
@@ -128,18 +129,9 @@ class Response
      *
      * @return void
      */
-    public function sendConflict()
+    public function sendConflictHeader()
     {
         $this->sendHeader('HTTP/1.1 409 Conflict', true, 409);
-    }
-
-    /**
-     *
-     * @return void
-     */
-    public function sendBadRequest()
-    {
-        $this->sendHeader('HTTP/1.1 400 Bad Request', true, 400);
     }
 
     /**
@@ -158,8 +150,33 @@ class Response
         $this->sendHeader('HTTP/1.1 403 Forbidden', true, 403);
     }
 
+    public function sendMethodNotAllowed()
+    {
+        $this->sendHeader('HTTP/1.1 405 Method Not Allowed', true, 405);
+    }
+
     public function sendHeaderContentTypeJson()
     {
         $this->sendHeader("Content-Type: application/json", true);
+    }
+
+    /**
+     * @param string $name
+     * @param string $value
+     * @param int    $expires
+     * @param string $path
+     */
+    public function setCookie($name, $value, $expires = null, $path = '/')
+    {
+        $this->sendP3pHeader();
+        setcookie($name, $value, $expires, $path);
+    }
+
+    private function sendP3pHeader()
+    {
+        if (!$this->p3pSent) {
+            header('p3p: CP="IDC DSP COR NID DEVi OUR BUS INT"'); // p3p headers are needed for IE
+            $this->p3pSent = true;
+        }
     }
 }

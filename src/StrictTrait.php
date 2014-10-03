@@ -5,14 +5,6 @@ namespace Spine;
 /**
  * Uses the __set magic function to prevent properties from being set unless they are defined.
  */
-class StrictClass
-{
-    use StrictTrait;
-}
-
-/**
- * Uses the __set magic function to prevent properties from being set unless they are defined.
- */
 trait StrictTrait
 {
 
@@ -28,13 +20,15 @@ trait StrictTrait
     public function __set($name, $value)
     {
         $traceMsg = $this->traceMsg();
-        throw new StrictClassException(sprintf(
-            "Trying to set unknown property named '%s' to '%s' for class '%s'. %s",
-            $name,
-            $value,
-            get_class($this),
-            $traceMsg
-        ));
+        throw new StrictClassException(
+            sprintf(
+                "Trying to set unknown property named '%s' to '%s' for class '%s'. %s",
+                $name,
+                $value,
+                get_class($this),
+                $traceMsg
+            )
+        );
     }
 
     /**
@@ -48,9 +42,11 @@ trait StrictTrait
     public function __get($name)
     {
         $traceMsg = $this->traceMsg();
-        throw new StrictClassException("Trying to get unknown property named '$name' for class '" . get_class(
+        throw new StrictClassException(
+            "Trying to get unknown property named '$name' for class '" . get_class(
                 $this
-            ) . "'.  $traceMsg");
+            ) . "'.  $traceMsg"
+        );
     }
 
     /**

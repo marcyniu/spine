@@ -34,7 +34,7 @@ class Pipe
     public function execute()
     {
         $result = false;
-        /** @var $filter PipeFilter */
+        /** @var $filter Filter */
         foreach ($this->filters as $filter) {
             $result = $filter->execute();
             if ($result === false) {

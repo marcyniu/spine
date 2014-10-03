@@ -49,6 +49,15 @@ class Request
     }
 
     /**
+     *
+     * @return string
+     */
+    public function agent()
+    {
+        return isset($this->server['HTTP_USER_AGENT']) ? $this->server['HTTP_USER_AGENT'] : '';
+    }
+
+    /**
      * @param $key
      *
      * @return string | null
@@ -113,6 +122,15 @@ class Request
      *
      * @return string
      */
+    public function remoteAddress()
+    {
+        return isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : '';
+    }
+
+    /**
+     *
+     * @return string
+     */
     public function type()
     {
         return isset($this->server['REQUEST_METHOD']) ? $this->server['REQUEST_METHOD'] : null;
@@ -130,7 +148,17 @@ class Request
         return getallheaders();
     }
 
-    private function cleanParam(&$val)
+    /**
+     * @param $COOKIE_NAME
+     *
+     * @return string|null
+     */
+    public function getCookie($COOKIE_NAME)
+    {
+        return isset($_COOKIE[$COOKIE_NAME]) ? $_COOKIE[$COOKIE_NAME] : null;
+    }
+
+    protected function cleanParam(&$val)
     {
         $val = trim($val);
         $val = str_replace(
@@ -166,7 +194,7 @@ class Request
      *
      * @return void
      */
-    private function setupParams()
+    protected function setupParams()
     {
         switch ($this->type()) {
             case 'GET':
@@ -178,7 +206,7 @@ class Request
                     ? json_decode(
                         file_get_contents('php://input'),
                         true
-                    ) ? : $_POST // default to _POST if no php://input
+                    ) ?: $_POST // default to _POST if no php://input
                     : $_POST;
                 break;
             case 'PUT':
@@ -187,8 +215,8 @@ class Request
                     ? json_decode(
                         file_get_contents('php://input'),
                         true
-                    ) ? : array() // default to array() if no php://input
-                    : $_POST;
+                    ) ?: array() // default to array() if no php://input
+                    : array_merge($_GET, $_POST);
                 break;
         }
 
@@ -204,12 +232,6 @@ class Request
      */
     private function validateParamsAndType()
     {
-        if ($this->type() === 'POST') {
-            if (count($_GET) !== 0) {
-                throw new HttpBadRequestException("POST request contains GET parameters");
-            }
-        }
-
         if ($this->type() !== 'POST') {
             if (count($_POST) !== 0) {
                 throw new HttpBadRequestException("Non-POST request contains POST parameters");

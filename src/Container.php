@@ -114,7 +114,6 @@ class Container
     public function resolve($className)
     {
 
-//        var_dump($className);
         if (!class_exists($className) && !interface_exists($className)) {
             throw new ContainerException("Class/Interface '$className' does not exist");
         }
@@ -153,7 +152,6 @@ class Container
             $reflectionFunction = new \ReflectionFunction($callable);
             $signature          = $this->getSignature($reflectionFunction);
 
-//            var_dump($signature);
             $args = array();
             foreach ($signature as $name => $type) {
                 $args[$name] = $this->resolve($type);
@@ -180,17 +178,41 @@ class Container
         $constructorReflectMethod = $reflectionClass->getConstructor();
 
         if ($constructorReflectMethod === null) { // no constructor.
-            return $reflectionClass->newInstance();
+            $instance = $reflectionClass->newInstance();
+        } else {
+            $signature = $this->getSignature($constructorReflectMethod);
+
+            $args = array();
+            foreach ($signature as $name => $type) {
+                $args[$name] = $this->resolve($type);
+            }
+
+            $instance = $reflectionClass->newInstanceArgs($args);
         }
 
-        $signature = $this->getSignature($constructorReflectMethod);
+        $injectMethods = (array_filter(
+            $reflectionClass->getMethods(),
+            function (\ReflectionMethod $reflectionMethod) {
 
-        $args = array();
-        foreach ($signature as $name => $type) {
-            $args[$name] = $this->resolve($type);
+                return (preg_match("/^inject/", $reflectionMethod->getName()));
+            }
+        ));
+
+        /** @var $injectMethod \ReflectionMethod */
+        foreach ($injectMethods as $injectMethod) {
+
+            $signature = $this->getSignature($injectMethod);
+
+            $args = array();
+            foreach ($signature as $name => $type) {
+                $args[$name] = $this->resolve($type);
+            }
+
+            $injectMethod->invokeArgs($instance, $args);
+
         }
 
-        return $reflectionClass->newInstanceArgs($args);
+        return $instance;
 
     }
 
