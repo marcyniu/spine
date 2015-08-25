@@ -2,6 +2,8 @@
 
 namespace Spine\Log;
 
+use Spine\Log\LogLevel;
+
 /**
  * This is a simple Logger implementation that other Loggers can inherit from.
  *

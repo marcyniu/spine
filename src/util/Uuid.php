@@ -2,6 +2,11 @@
 
 namespace Spine;
 
+/**
+ * Class UUID
+ *
+ * @package Spine
+ */
 class UUID
 {
 

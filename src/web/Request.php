@@ -36,6 +36,7 @@ class Request
     protected $server = array();
 
     protected $pathParams = array();
+    protected $phpInput = null;
 
     /**
      * Setup request.
@@ -49,12 +50,19 @@ class Request
     }
 
     /**
-     *
      * @return string
      */
-    public function agent()
+    public function accept()
     {
-        return isset($this->server['HTTP_USER_AGENT']) ? $this->server['HTTP_USER_AGENT'] : '';
+        return isset($this->server['HTTP_ACCEPT']) ? $this->server['HTTP_ACCEPT'] : null;
+    }
+
+    /**
+     * @return string
+     */
+    public function host()
+    {
+        return isset($this->server['HTTP_HOST']) ? $this->server['HTTP_HOST'] : null;
     }
 
     /**
@@ -78,12 +86,40 @@ class Request
     }
 
     /**
+     * @return string | null
+     */
+    public function pathParams()
+    {
+        return $this->pathParams;
+    }
+
+    /**
      *
      * @return string
      */
     public function path()
     {
         return parse_url($this->server['REQUEST_URI'], PHP_URL_PATH);
+    }
+
+    /**
+     * @return string
+     */
+    public function port()
+    {
+        return isset($this->server['SERVER_PORT']) ? $this->server['SERVER_PORT'] : null;
+    }
+
+    /**
+     *
+     * @return string
+     */
+    public function queryString()
+    {
+        if (isset($this->server['QUERY_STRING'])) {
+            return $this->server['QUERY_STRING'];
+        }
+        return "";
     }
 
     /**
@@ -98,7 +134,7 @@ class Request
     /**
      * @param $key
      *
-     * @return string
+     * @return string|array
      * @throws HttpBadRequestException
      */
     public function requiredParam($key)
@@ -122,18 +158,31 @@ class Request
      *
      * @return string
      */
-    public function remoteAddress()
+    public function type()
     {
-        return isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : '';
+        return isset($this->server['REQUEST_METHOD']) ? $this->server['REQUEST_METHOD'] : null;
     }
 
     /**
      *
      * @return string
      */
-    public function type()
+    public function agent()
     {
-        return isset($this->server['REQUEST_METHOD']) ? $this->server['REQUEST_METHOD'] : null;
+        return isset($this->server['HTTP_USER_AGENT']) ? $this->server['HTTP_USER_AGENT'] : null;
+    }
+
+    public function userIp()
+    {
+        $ip = null;
+        if (isset($this->server['HTTP_CLIENT_IP']) && !empty($this->server['HTTP_CLIENT_IP'])) {
+            $ip = $this->server['HTTP_CLIENT_IP'];
+        } elseif (isset($this->server['HTTP_X_FORWARDED_FOR']) && !empty($this->server['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $this->server['HTTP_X_FORWARDED_FOR'];
+        } else {
+            $ip = isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : null;
+        }
+        return $ip;
     }
 
     public function header($name)
@@ -146,16 +195,6 @@ class Request
     protected function headers()
     {
         return getallheaders();
-    }
-
-    /**
-     * @param $COOKIE_NAME
-     *
-     * @return string|null
-     */
-    public function getCookie($COOKIE_NAME)
-    {
-        return isset($_COOKIE[$COOKIE_NAME]) ? $_COOKIE[$COOKIE_NAME] : null;
     }
 
     protected function cleanParam(&$val)
@@ -213,7 +252,7 @@ class Request
             case 'DELETE':
                 $this->params = $this->hasAjaxData()
                     ? json_decode(
-                        file_get_contents('php://input'),
+                        $this->getInput(),
                         true
                     ) ?: array() // default to array() if no php://input
                     : array_merge($_GET, $_POST);
@@ -225,6 +264,14 @@ class Request
 
     }
 
+    protected function getInput()
+    {
+        if ($this->phpInput === null) {
+            $this->phpInput = file_get_contents('php://input');
+        }
+        return $this->phpInput;
+    }
+
     /**
      *
      * @return void
@@ -232,6 +279,12 @@ class Request
      */
     private function validateParamsAndType()
     {
+        if ($this->type() === 'POST') {
+//			if (count($_GET) !== 0) {
+//				throw new HttpBadRequestException("POST request contains GET parameters");
+//			}
+        }
+
         if ($this->type() !== 'POST') {
             if (count($_POST) !== 0) {
                 throw new HttpBadRequestException("Non-POST request contains POST parameters");
@@ -258,10 +311,8 @@ class Request
 
     public function resourceIdGiven()
     {
-
         $lastPathParamValue = "/" . end($this->pathParams);
         reset($this->pathParams);
-
         $lastPartOfPath = substr($this->path(), -strlen($lastPathParamValue));
         return ($lastPathParamValue == $lastPartOfPath);
 

@@ -2,6 +2,9 @@
 
 namespace Spine\Web;
 
+use ReflectionMethod;
+use Spine\Container;
+
 /**
  * Basic Http Controller
  *
@@ -9,100 +12,52 @@ namespace Spine\Web;
  */
 abstract class Controller extends BaseController implements ControllerInterface
 {
+
     /**
-     *
-     * @throws HttpMethodNotAllowedException
+     * @var Container
+     */
+    private $container;
+
+    /**
+     * @param Container $container
+     */
+    public function injectContainer(Container $container)
+    {
+        $this->container = $container;
+    }
+
+    /**
      * @return void
      */
     public function dispatch()
     {
-        switch ($this->request->type()) {
-            case 'GET':
-                $this->get();
-                break;
-            case 'HEAD':
-                $this->head();
-                break;
-            case 'POST':
-                $this->post();
-                break;
-            case 'PUT':
-                $this->put();
-                break;
-            case 'DELETE':
-                $this->delete();
-                break;
-            case 'OPTIONS':
-                $this->options();
-                break;
-            default:
-                throw new HttpMethodNotAllowedException();
+        if (!isset($this->request)) {
+            throw new \RuntimeException("\$this->request is not set. Check if this controller's (" . get_class($this) . ") constructor was overridden.");
         }
+
+        // All HTTP Request Types map to a method
+        $methodName = strtolower($this->request->type());
+
+        $this->callMethod($methodName);
     }
 
     /**
-     * Overridable method if the concrete controller wishes to handle.
+     * @param string $methodName
      *
-     * @return void
-     * @throws HttpMethodNotAllowedException If called.
+     * @throws HttpMethodNotAllowedException
      */
-    protected function get()
+    protected function callMethod($methodName)
     {
-        throw new HttpMethodNotAllowedException();
+        if (!method_exists($this, $methodName)) {
+            $class = get_class($this);
+            throw new HttpMethodNotAllowedException(sprintf("'%s->%s()' not implemented", $class, $methodName));
+        }
+
+        $reflectionMethod = new ReflectionMethod($this, $methodName);
+
+        $args = $this->container->resolveArguments($reflectionMethod);
+
+        $reflectionMethod->invokeArgs($this, $args);
     }
 
-    /**
-     * Overridable method if the concrete controller wishes to handle.
-     *
-     * @return void
-     * @throws HttpMethodNotAllowedException If called.
-     */
-    protected function head()
-    {
-        $this->response->sendMethodNotAllowed();
-    }
-
-    /**
-     * Overridable method if the concrete controller wishes to handle.
-     *
-     * @return void
-     * @throws HttpMethodNotAllowedException If called.
-     */
-    protected function post()
-    {
-        throw new HttpMethodNotAllowedException();
-    }
-
-    /**
-     * Overridable method if the concrete controller wishes to handle.
-     *
-     * @return void
-     * @throws HttpMethodNotAllowedException If called.
-     */
-    protected function delete()
-    {
-        throw new HttpMethodNotAllowedException();
-    }
-
-    /**
-     * Overridable method if the concrete controller wishes to handle.
-     *
-     * @return void
-     * @throws HttpMethodNotAllowedException If called.
-     */
-    protected function options()
-    {
-        $this->response->sendMethodNotAllowed();
-    }
-
-    /**
-     * Overridable method if the concrete controller wishes to handle.
-     *
-     * @return void
-     * @throws HttpMethodNotAllowedException If called.
-     */
-    protected function put()
-    {
-        throw new HttpMethodNotAllowedException();
-    }
 }

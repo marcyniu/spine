@@ -2,10 +2,12 @@
 
 namespace Spine\Web;
 
+use Spine\StrictClass;
+
 /**
  *
  */
-abstract class BaseController
+abstract class BaseController extends StrictClass
 {
     /**
      * @var Request

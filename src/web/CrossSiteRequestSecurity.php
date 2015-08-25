@@ -16,6 +16,6 @@ class CrossSiteRequestSecurity
 
     public function createNewToken()
     {
-        return uuid_create();
+        return UUID::v4();
     }
 }

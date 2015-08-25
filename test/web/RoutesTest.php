@@ -3,6 +3,10 @@ namespace Spine\Web;
 
 use PHPUnit_Framework_TestCase;
 
+class TestRoutes extends Routes {
+
+}
+
 /**
  * Class RouteTest
  *
@@ -22,7 +26,7 @@ class RoutesTest extends PHPUnit_Framework_TestCase
     protected function setUp()
     {
         $this->request = new FakeRequest();
-        $this->routes  = new Routes($this->request);
+        $this->routes  = new TestRoutes($this->request);
 
         $reflectionRoutes = new \ReflectionProperty($this->routes, "routes");
         $reflectionRoutes->setAccessible(true);
@@ -39,15 +43,9 @@ class RoutesTest extends PHPUnit_Framework_TestCase
     public function testResolve()
     {
 
+        $this->setExpectedException('Spine\\Web\\HttpNotFoundException');
         $this->request->fakePath = "/Fake/Routes/Are/Fun";
         $controllerName          = $this->routes->resolve();
-
-        $this->assertEquals(__NAMESPACE__ . "\\FakeController", $controllerName);
-
-        $this->request->fakePath = "/json/accounts/account123456/rules";
-        $controllerName          = $this->routes->resolve();
-
-        $this->assertEquals(__NAMESPACE__ . "\\AccountRuleRestController", $controllerName);
 
     }
 

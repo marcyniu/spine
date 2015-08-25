@@ -1,18 +1,16 @@
 <?php
 /**
- * @author: lance
- * @since 20140-02-22
+ *
+ * @author Lance Rushing <lance@lancerushing.com>
+ * @since  11/10/14
  */
 
 namespace Spine\Web;
 
-/**
- * Class Cookies, wraps up the Cookie super globals
- *
- * @package Spine\Web
- */
-class Cookies
+class FakeCookies extends Cookies
 {
+
+    public $store = [];
 
     /**
      * @param string $name
@@ -21,8 +19,8 @@ class Cookies
      */
     public function get($name)
     {
-        if (isset($_COOKIE[$name])) {
-            return $_COOKIE[$name];
+        if (isset($this->store[$name])) {
+            return $this->store[$name];
         }
         return null;
     }
@@ -34,12 +32,7 @@ class Cookies
      */
     public function set($name, $value, $expire = null)
     {
-        setcookie($name, $value, $expire, "/");
+        $this->store[$name] = $value;
     }
 
-    public function delete($name)
-    {
-        unset($_COOKIE[$name]);
-        $this->set($name, null, -1);
-    }
-} 
+}

@@ -24,20 +24,18 @@ class HttpException extends Exception
  */
 class HttpBadRequestException extends HttpException
 {
+
     protected $message = "Bad Request";
     protected $code = 400;
 
 }
 
-/**
- * Class HttpBadRequestException
- *
- * @package Spine\Web
- */
-class HttpUnauthorizedException extends HttpException
+class HttpForbiddenException extends HttpException
 {
-    protected $message = "Unauthorized";
-    protected $code = 401;
+
+    protected $message = "Forbidden";
+    protected $code = 403;
+
 }
 
 /**

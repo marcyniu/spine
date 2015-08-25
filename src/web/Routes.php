@@ -2,18 +2,20 @@
 
 namespace Spine\Web;
 
+use Closure;
 use ReflectionObject;
 
 /**
  * Extend this class, and add your routes
  */
-class Routes
+abstract class Routes
 {
 
     /**
      * Add your Routes here
      *
      * @var array
+     * @deprecated Use routes();
      */
     protected $routes = array(); // <-- extend and add your routes
 
@@ -26,38 +28,97 @@ class Routes
     }
 
     /**
-     * Name of the class to dispatch the request
+     * Extend and add your routes
      *
-     * @return string
+     * @return array
      */
-    public function resolve()
+    protected function routes()
     {
-        $pathParams = array();
-        $path       = $this->request->path();
+        return array();
 
-        foreach ($this->routes as $pattern => $controllerClassName) {
-
-            $regEx = self::compileString($pattern);
-
-            if (preg_match($regEx, $path, $pathParams)) {
-                // leave only the values with string keys
-                $stringKeys = array_filter(array_keys($pathParams), 'is_string');
-                $this->request->setPathParams(array_intersect_key($pathParams, array_flip($stringKeys)));
-
-                $routesReflectionObject = new ReflectionObject($this);
-                $controllerClassName    = $routesReflectionObject->getNamespaceName() . "\\" . $controllerClassName;
-
-                return $controllerClassName;
-            }
-        }
-
-        return false;
     }
 
     /**
      * @var Request
      */
-    private $request;
+    protected $request;
+
+    /**
+     * Name of the class to dispatch the request
+     *
+     * @throws HttpNotFoundException
+     * @return string
+     */
+    public function resolve()
+    {
+
+        $path = $this->request->path();
+
+        $routes = array_merge($this->routes());
+
+        $controllerName = $this->matchRoute($routes, $path);
+        if ($controllerName) {
+
+            return $controllerName;
+        }
+
+        return $this->notFound($path);
+    }
+
+    /**
+     * @param $routes
+     * @param $path
+     *
+     * @return null|string
+     * @throws HttpForbiddenException
+     */
+    public function matchRoute($routes, $path)
+    {
+        $pathParams = array();
+
+        foreach ($routes as $pattern => $route) {
+
+            $regEx = self::compileString($pattern);
+
+            if (preg_match($regEx, $path, $pathParams)) {
+                if (is_string($route)) {
+                    $temp                       = $route;
+                    $route                      = new Route($this->request);
+                    $route->controllerClassName = $temp;
+                }
+
+                if (is_object($route) && ($route instanceof Closure)) {
+                    $route = $route();
+                }
+
+                if (!$route->isAllowed()) {
+                    throw new HttpForbiddenException("Route not allowed.");
+                }
+
+                // leave only the values with string keys
+                $stringKeys = array_filter(array_keys($pathParams), 'is_string');
+                $this->request->setPathParams(array_intersect_key($pathParams, array_flip($stringKeys)));
+
+                $controllerClassName = $this->getNameSpace() . "\\" . $route->controllerClassName;
+
+                return $controllerClassName;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extend if needed
+     *
+     * @param string $path
+     *
+     * @throws HttpNotFoundException
+     * @return string ClassName
+     */
+    protected function notFound($path)
+    {
+        throw new HttpNotFoundException(get_class($this) . " - Route '$path' not found.");
+    }
 
     /**
      * The regular expression for a wildcard.
@@ -129,6 +190,12 @@ class Routes
 
         return $value;
 
+    }
+
+    private function getNameSpace()
+    {
+        $routesReflectionObject = new ReflectionObject($this);
+        return $routesReflectionObject->getNamespaceName();
     }
 
 }

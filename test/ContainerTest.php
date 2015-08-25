@@ -41,7 +41,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
         $newObject = new stdClass;
         $this->container->register($newObject);
 
-        $returned = $this->container->resolve("StdClass");
+        $returned = $this->container->resolve("stdClass");
         $this->assertEquals($newObject, $returned);
     }
 
@@ -54,10 +54,6 @@ class ContainerTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($newObject, $returned);
 
         $returned = $this->container->resolve("stdClass");
-        $this->assertEquals($newObject, $returned);
-
-        // and case wrongly cased class names....
-        $returned = $this->container->resolve("stdclass");
         $this->assertEquals($newObject, $returned);
 
     }
@@ -79,7 +75,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
     public function testResolveThrowsException()
     {
-        $this->setExpectedException("Uptracs\\Spine\\ContainerException");
+        $this->setExpectedException("Spine\\ContainerException");
         $this->container->resolve("Non existent class");
     }
 
@@ -88,8 +84,8 @@ class ContainerTest extends PHPUnit_Framework_TestCase
      */
     public function testMakeThrowsExceptionForSingleton()
     {
-        $this->setExpectedException("Uptracs\\Spine\\ContainerException");
-        $this->container->make("Uptracs\\Spine\\ContainerTest_FakeClass_Cannot_Instantiate");
+        $this->setExpectedException("Spine\\ContainerException");
+        $this->container->make("Spine\\ContainerTest_FakeClass_Cannot_Instantiate");
     }
 
     /**
@@ -97,9 +93,9 @@ class ContainerTest extends PHPUnit_Framework_TestCase
     public function testMake()
     {
 
-        $returned = $this->container->make("Uptracs\\Spine\\ContainerTest_FakeClass_NeedsAClass");
+        $returned = $this->container->make("Spine\\ContainerTest_FakeClass_NeedsAClass");
 
-        $this->assertInstanceOf("Uptracs\\Spine\\ContainerTest_FakeClass_NeedsAClass", $returned);
+        $this->assertInstanceOf("Spine\\ContainerTest_FakeClass_NeedsAClass", $returned);
 
     }
 
@@ -124,8 +120,8 @@ class ContainerTest extends PHPUnit_Framework_TestCase
     public function testSignatureScalarParameter()
     {
         $this->setExpectedException(
-            "Uptracs\\Spine\\ContainerException",
-            "Method 'Uptracs\\Spine\\ContainerTest:Uptracs\\Spine\\{closure}()' has no type hint  and no default value for 'string' parameter, found in"
+            "Spine\\ContainerException",
+            "Method 'Spine\\ContainerTest:Spine\\{closure}()' has no type hint  and no default value for 'string' parameter, found in"
         );
 
         $method = new \ReflectionMethod($this->container, "getSignature");
@@ -143,8 +139,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
     public function testSignatureUnknownClassParameter()
     {
         $this->setExpectedException(
-            "Uptracs\\Spine\\ContainerException",
-            "Method 'Spine\CoSpineptracs\Spine\{closure}()' has unknown type hint for 'class' parameter"
+            "Spine\\ContainerException"
         );
 
         $method = new \ReflectionMethod($this->container, "getSignature");

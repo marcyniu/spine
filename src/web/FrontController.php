@@ -16,8 +16,8 @@ class FrontController implements ControllerInterface
     protected $routes;
 
     /**
-     * @param Spine\Container $container
-     * @param Routes          $routes
+     * @param Container $container
+     * @param Routes    $routes
      */
     public function __construct(Container $container, Routes $routes)
     {
@@ -30,9 +30,9 @@ class FrontController implements ControllerInterface
      */
     public function dispatch()
     {
-        $controllerName = $this->routes->resolve();
+        $controllerClassName = $this->routes->resolve();
         /** @var $controller ControllerInterface */
-        $controller = $this->container->resolve($controllerName);
+        $controller = $this->container->resolve($controllerClassName);
         $controller->dispatch();
     }
 

@@ -12,11 +12,21 @@
     ],
     "require": {
         "php": ">=5.4.0"
-
+    },
+    "require-dev": {
+        "phpunit/phpunit": "4.1.*",
+        "squizlabs/php_codesniffer": "1.*",
+        "phploc/phploc": "*"
     },
     "autoload": {
         "classmap": [
             "src/"
+        ]
+    },
+    "autoload-dev": {
+        "classmap": [
+            "src/",
+            "test/"
         ]
     }
 }

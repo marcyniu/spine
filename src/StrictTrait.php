@@ -14,13 +14,13 @@ trait StrictTrait
      * @param string $name  Name of property.
      * @param mixed  $value Value of property.
      *
-     * @throws StrictClassException
+     * @throws StrictException
      * @return void
      */
     public function __set($name, $value)
     {
         $traceMsg = $this->traceMsg();
-        throw new StrictClassException(
+        throw new StrictException(
             sprintf(
                 "Trying to set unknown property named '%s' to '%s' for class '%s'. %s",
                 $name,
@@ -36,13 +36,13 @@ trait StrictTrait
      *
      * @param string $name Name of property.
      *
-     * @throws StrictClassException
+     * @throws StrictException
      * @return void
      */
     public function __get($name)
     {
         $traceMsg = $this->traceMsg();
-        throw new StrictClassException(
+        throw new StrictException(
             "Trying to get unknown property named '$name' for class '" . get_class(
                 $this
             ) . "'.  $traceMsg"

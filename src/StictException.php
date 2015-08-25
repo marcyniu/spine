@@ -5,11 +5,11 @@ namespace Spine;
 use RuntimeException;
 
 /**
- * Class StrictClassException
+ * Class StrictException
  *
  * @package Spine
  */
-class StrictClassException extends RuntimeException
+class StrictException extends RuntimeException
 {
 
 }

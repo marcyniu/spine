@@ -4,7 +4,7 @@ namespace Spine;
 /**
  * The Pipe class to attach filters to
  *
- * @package    Spine
+ * @package Spine
  * @author     Lance Rushing
  * @since      2014-02-05
  */
@@ -34,7 +34,7 @@ class Pipe
     public function execute()
     {
         $result = false;
-        /** @var $filter Filter */
+        /** @var $filter PipeFilter */
         foreach ($this->filters as $filter) {
             $result = $filter->execute();
             if ($result === false) {

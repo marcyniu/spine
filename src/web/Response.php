@@ -6,7 +6,6 @@ namespace Spine\Web;
  */
 class Response
 {
-    private $p3pSent = false;
 
     /**
      * Redirect request.
@@ -18,7 +17,7 @@ class Response
     public function redirect($url)
     {
         $this->sendHeader('Location: ' . $url, true, 302);
-        exit;
+//		exit;
     }
 
     /**
@@ -31,7 +30,7 @@ class Response
     public function redirectPermanently($url)
     {
         $this->sendHeader('Location: ' . $url, true, 301);
-        exit;
+//		exit;
     }
 
     /**
@@ -50,6 +49,15 @@ class Response
         } else {
             header($string, $replace);
         }
+    }
+
+    public function sendNoCacheHeaders()
+    {
+        // prevent Caching
+        $this->sendHeader("Expires: Fri, 18 May 1973 04:00:00 GMT");
+        $this->sendHeader("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        $this->sendHeader("Cache-Control: post-check=0, pre-check=0", false);
+        $this->sendHeader("Pragma: no-cache");
     }
 
     /**
@@ -79,11 +87,11 @@ class Response
     public function sendJson($mixed, $options = 0)
     {
         $this->sendHeaderContentTypeJson();
-        $this->sendBody(json_encode($mixed), $options);
+        $this->sendBody(json_encode($mixed, $options));
     }
 
     /**
-     * Empty function. Available to override in unit tests or output buffering.
+     * Empty function. Available to override in unit tests for output buffering.
      */
     public function startBody()
     {
@@ -91,7 +99,7 @@ class Response
     }
 
     /**
-     * Empty function. Available to override in unit tests or output buffering.
+     * Empty function. Available to override in unit tests for output buffering.
      */
     public function endBody()
     {
@@ -111,6 +119,15 @@ class Response
      *
      * @return void
      */
+    public function sendOk()
+    {
+        $this->sendHeader('HTTP/1.1 200 OK', false, 200);
+    }
+
+    /**
+     *
+     * @return void
+     */
     public function sendNotFound()
     {
         $this->sendHeader('HTTP/1.1 404 Not Found', true, 404);
@@ -120,7 +137,7 @@ class Response
      *
      * @return void
      */
-    public function sendNoContentHeader()
+    public function sendNoContent()
     {
         $this->sendHeader('HTTP/1.1 204 No Content', true, 204);
     }
@@ -129,9 +146,18 @@ class Response
      *
      * @return void
      */
-    public function sendConflictHeader()
+    public function sendConflict()
     {
         $this->sendHeader('HTTP/1.1 409 Conflict', true, 409);
+    }
+
+    /**
+     *
+     * @return void
+     */
+    public function sendBadRequest()
+    {
+        $this->sendHeader('HTTP/1.1 400 Bad Request', true, 400);
     }
 
     /**
@@ -160,23 +186,8 @@ class Response
         $this->sendHeader("Content-Type: application/json", true);
     }
 
-    /**
-     * @param string $name
-     * @param string $value
-     * @param int    $expires
-     * @param string $path
-     */
-    public function setCookie($name, $value, $expires = null, $path = '/')
+    public function sendHeaderContentTypeXML()
     {
-        $this->sendP3pHeader();
-        setcookie($name, $value, $expires, $path);
-    }
-
-    private function sendP3pHeader()
-    {
-        if (!$this->p3pSent) {
-            header('p3p: CP="IDC DSP COR NID DEVi OUR BUS INT"'); // p3p headers are needed for IE
-            $this->p3pSent = true;
-        }
+        $this->sendHeader("Content-Type: text/xml", true);
     }
 }

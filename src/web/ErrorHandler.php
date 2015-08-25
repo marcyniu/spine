@@ -15,7 +15,7 @@ use Exception;
 class ErrorHandler
 {
 
-    private $httpResponseCode = 500;
+    protected $httpResponseCode = 500;
     private $httpResponseMessage = "Internal Server Error";
     private $headerSet = false;
     private $prettySent = false;
@@ -107,11 +107,7 @@ class ErrorHandler
 
         if ($lastError !== null) {
             if ($this->headerSet === false) {
-                if (headers_sent() === false) {
-                    header("HTTP/1.1 $this->httpResponseCode $this->httpResponseMessage", false);
-                } else {
-                    $this->printCloseHtmlTags();
-                }
+                header("HTTP/1.1 $this->httpResponseCode $this->httpResponseMessage", false);
             }
             if ($this->iniGetDisplayErrors() === false) {
                 $this->displayPretty();
@@ -154,7 +150,7 @@ class ErrorHandler
         if ($this->prettySent === false) {
             $errorDocumentFilename = sprintf('%s/%s.html', $_SERVER["DOCUMENT_ROOT"], $this->httpResponseCode);
             if (is_file($errorDocumentFilename) === true) {
-                echo file_get_contents($errorDocumentFilename);
+                include $errorDocumentFilename;
             } else {
                 printf(
                     '<h1>%s</h1><p>%s</p>',
@@ -183,7 +179,7 @@ class ErrorHandler
      *
      * @return void
      */
-    private function logException(Exception $exception)
+    protected function logException(Exception $exception)
     {
         while (null !== $exception) {
             $uniqueLogId = uniqid();
