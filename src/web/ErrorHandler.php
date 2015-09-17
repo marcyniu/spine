@@ -8,6 +8,7 @@ namespace Spine\Web;
 
 use ErrorException;
 use Exception;
+use Psr\Log\LoggerInterface;
 
 /**
  * @codeCoverageIgnore
@@ -20,6 +21,19 @@ class ErrorHandler
     private $headerSet = false;
     private $prettySent = false;
 
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * ErrorHandler constructor.
+     * @param LoggerInterface|null $logger
+     */
+    public function __construct(LoggerInterface $logger = null)
+    {
+        $this->logger = $logger;
+    }
     /**
      * Registers the error itself as the an error handler.
      *
@@ -125,15 +139,9 @@ class ErrorHandler
      */
     public function iniGetDisplayErrors()
     {
-
         $displayErrors = strtolower(ini_get('display_errors'));
 
-        if ($displayErrors === 'on' || $displayErrors === '1') {
-            // let PHP show the errors. (dev)
-            return true;
-        }
-
-        return false;
+        return $displayErrors === 'on' || $displayErrors === '1';
     }
 
     /**
@@ -182,26 +190,20 @@ class ErrorHandler
     protected function logException(Exception $exception)
     {
         while (null !== $exception) {
+
             $uniqueLogId = uniqid();
-            error_log(
-                sprintf(
-                    "$uniqueLogId:Unhandled Exception %s %s %s (%s)",
+
+            $msg = sprintf(
+                    "Unhandled Exception %s %s %s (%s)",
                     get_class($exception),
                     $exception->getMessage(),
                     $exception->getFile(),
                     $exception->getLine()
-                )
-            );
-            error_log(sprintf("$uniqueLogId:GET: %s", json_encode($_GET)));
-            error_log(sprintf("$uniqueLogId:POST: %s", json_encode($_POST)));
-            foreach ($_SERVER as $key => $value) {
-                if (!is_string($value)) {
-                    $value = json_encode($value);
-                }
-                error_log(sprintf("$uniqueLogId:SERVER[%s]: %s", $key, $value));
-            }
+                );
 
-            error_log("$uniqueLogId:Call Stack");
+            $serverKeys = array_flip(['REMOTE_ADDR', 'SERVER_NAME', 'REQUEST_URI', 'REQUEST_METHOD', 'HTTP_USER_AGENT', 'HTTP_COOKIE']);
+
+            $stackTrace = [];
             foreach ($exception->getTrace() as $key => $trace) {
                 $class = '';
                 $file  = '';
@@ -214,8 +216,10 @@ class ErrorHandler
                     $file = sprintf('%s (%s)', $trace['file'], $trace['line']);
                 }
 
-                error_log(sprintf("$uniqueLogId:%s %s %s %s", $key, $class, $trace['function'], $file));
+                $stackTrace[] = sprintf("$uniqueLogId:%s %s %s %s", $key, $class, $trace['function'], $file);
             }
+
+            $this->logger->error($msg, ['TRACE'=>$stackTrace, '_GET' => $_GET, '_POST' => $_POST, '_SERVER' => array_intersect_key($_SERVER, $serverKeys)]);
 
             $exception = $exception->getPrevious();
         }
