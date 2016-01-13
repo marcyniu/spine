@@ -21,13 +21,17 @@ class Container
     protected $registerParentsClassNames = true;
 
     /**
+     * @var array
+     */
+    private $resolvingClasses = [];
+
+    /**
      *
      */
     public function __construct()
     {
         // register itself. Note: be careful with depending on the container, only factory like classes should ever need it....
         $this->register($this);
-
     }
 
     /**
@@ -134,11 +138,13 @@ class Container
             throw new ContainerException("Class/Interface '$className' does not exist");
         }
 
+
+
         $key = $className; // @note, this used to make lower case here, b/c auto loader might be case sensitive, but maybe not anymore
         if (!isset($this->objects[$key])) {
-            $object = $this->make($className);
-            $this->register($object);
+            $instance = $this->make($className);
         }
+
 
         return $this->objects[$key];
 
@@ -154,13 +160,14 @@ class Container
      */
     public function make($className)
     {
+        $this->resolvingClasses[$className] = 1;
 
         $reflectionClass = new ReflectionClass($className);
-        $key             = $className;
+        $key             = $reflectionClass->name;
 
         // Confirm it can be created.
         if (!$reflectionClass->isInstantiable() && !isset($this->typeFactories[$key])) {
-            throw new ContainerException("The type $className  is not instantiable");
+            throw new ContainerException("The type " . $reflectionClass->name . " is not instantiable");
         }
 
         if (isset($this->typeFactories[$key])) {
@@ -169,6 +176,9 @@ class Container
             $instance = $this->createInstance($reflectionClass);
         }
 
+        unset($this->resolvingClasses[$className]);
+
+        $this->register($instance);
         $this->invokeInjectMethods($reflectionClass, $instance);
 
         return $instance;
@@ -241,6 +251,19 @@ class Container
         $signature = $this->getSignature($reflectionMethod);
         $args      = array();
         foreach ($signature as $name => $type) {
+
+            if (isset($this->resolvingClasses[$type])) {
+
+                if ($reflectionMethod instanceof \ReflectionFunction ) {
+                    /** @var \ReflectionFunction $reflectionMethod */
+                    $msg = sprintf('Circular Reference Detected. Function defined in "%s:%s" requires type "%s".', $reflectionMethod->getFileName(), $reflectionMethod->getEndLine(), $type );
+                } else {
+                    /** @var \ReflectionMethod $reflectionMethod */
+                    $msg = sprintf('Circular Reference Detected. Method "%s::%s" defined in "%s:%s requires type "%s".', $reflectionMethod->class,$reflectionMethod->getName(), $reflectionMethod->getFileName(), $reflectionMethod->getEndLine(), $type);
+                }
+
+                throw new ContainerException($msg);
+            }
             $args[$name] = $this->resolve($type);
         }
         return $args;
