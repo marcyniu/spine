@@ -23,6 +23,34 @@ class ContainerTest_FakeClass_Cannot_Instantiate extends stdClass
     }
 }
 
+class TestClassA {
+    public function __construct(TestClassB $testClassB)
+    {
+    }
+
+}
+
+class TestClassB {
+    public function __construct(TestClassA $testClassA)
+    {
+    }
+}
+
+class TestClassC {
+    public function __construct(TestClassD $testClassD)
+    {
+    }
+}
+
+
+class TestClassD {
+    public function inject(TestClassC $testClassC) {
+
+    }
+
+}
+
+
 class ContainerTest extends PHPUnit_Framework_TestCase
 {
     /**
@@ -150,6 +178,30 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
         $method->invoke($this->container, new \ReflectionFunction($function));
 
+    }
+
+    public function testChickenAndEggDetection() {
+        $this->setExpectedException(
+            "Spine\\ContainerException"
+        );
+        $this->container->resolve("Spine\\TestClassA");
+    }
+
+    public function testChickenAndEggFactoryDetection() {
+
+        $factory = function(TestClassB $classB) { };
+
+        $this->setExpectedException(
+            "Spine\\ContainerException"
+        );
+        $this->container->registerTypeFactory("Spine\\TestClassB", $factory);
+        $this->container->resolve("Spine\\TestClassB");
+    }
+
+
+    public function testChickenAndEggFixWithInject() {
+
+        $this->container->resolve("Spine\\TestClassC");
     }
 
 }
