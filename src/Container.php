@@ -15,15 +15,28 @@ class Container
     /**
      * @var array
      */
-    protected $objects = array();
-    private $typeFactories = array();
-
-    protected $registerParentsClassNames = true;
+    protected $objects = [];
 
     /**
+     * @var array <ContainerFactory>
+     */
+    private $typeFactories = [];
+
+    /**
+     * Used to detect circular __construct() dependencies
+     *
      * @var array
      */
     private $resolvingClasses = [];
+
+    /**
+     * Array of [<ReflectionMethod>, <instance>]
+     *
+     * Keeps track of any inject*() methods that need to be called after object construction
+     *
+     * @var array
+     */
+    private $injectionMethods = [];
 
     /**
      *
@@ -35,92 +48,92 @@ class Container
     }
 
     /**
+     * Will invoke the given $callable with all of it's arguments resolved
+     *
+     * @param $callable
+     *
+     * @return mixed
+     */
+    public function callFunction($callable)
+    {
+        $reflectionFunction = new \ReflectionFunction($callable);
+        $args               = $this->resolveArguments($reflectionFunction);
+        return $reflectionFunction->invokeArgs($args);
+    }
+
+    /**
+     * @param mixed  $class Either a string containing the name of the class to reflect, or an object.
+     * @param string $methodName
+     *
+     * @return mixed
+     */
+    public function callMethod($class, $methodName)
+    {
+        $reflectionClass  = new ReflectionClass($class);
+        $reflectionMethod = $reflectionClass->getMethod($methodName);
+        $args             = $this->resolveArguments($reflectionMethod);
+        return $reflectionMethod->invokeArgs($class, $args);
+    }
+
+    /**
      * Registers and Object -- fluent
      *
-     * @param $object
+     * @param      $object
+     * @param bool $registerParentClasses
      *
      * @return Container
-     * @return \Spine\Container
      */
-    public function register($object)
+    public function register($object, $registerParentClasses = true)
     {
-
         $reflectionObject = new ReflectionObject($object);
 
         $this->registerType($reflectionObject->getName(), $object);
 
         // register parent classes also
-        // @todo this might not work in the long run...
-
-        // Testing the idea of not registering the parent class names as provided for by this object
-        if ($this->registerParentsClassNames) {
+        if ($registerParentClasses) {
             $this->registerParents($object, $reflectionObject);
             $this->registerInterfaces($object, $reflectionObject);
-
         }
 
         return $this;
     }
 
     /**
-     * @param                 $object
-     * @param ReflectionClass $reflectionClass
-     */
-    private function registerParents($object, ReflectionClass $reflectionClass)
-    {
-        $parentClass = $reflectionClass->getParentClass();
-        if ($parentClass) {
-            $this->registerType($parentClass->getName(), $object);
-            $this->registerParents($object, $parentClass);
-
-        }
-    }
-
-    /**
-     * @param                 $object
-     * @param ReflectionClass $reflectionClass
-     */
-    private function registerInterfaces($object, ReflectionClass $reflectionClass)
-    {
-        $interfaceNames = $reflectionClass->getInterfaceNames();
-        foreach ($interfaceNames as $interfaceName) {
-            $this->registerType($interfaceName, $object);
-        }
-    }
-
-    /**
      * @param string $type Name of class/interface the object extends/implements
      * @param object $object
+     *
+     * @return $this
      */
     public function registerType($type, $object)
     {
+        $type                 = trim($type, "\\"); // trim off any namespace delimiters
         $this->objects[$type] = $object;
+        return $this;
     }
 
     /**
      * @param string   $type
      * @param callable $callableFactory
      * @param bool     $registerParents Will also register the factory for the parent class of $type
+     *
+     * @return $this
      */
     public function registerTypeFactory($type, $callableFactory, $registerParents = true)
     {
 
-        $type = trim($type, "\\"); // trim off any namespace delimiters
+        $containerFactory           = new ContainerFactory();
+        $containerFactory->callable = $callableFactory;
+
+        $reflectionClass = new ReflectionClass($type);
+
+        $this->typeFactories[$reflectionClass->getName()] = $containerFactory;
 
         if ($registerParents) {
-            $reflectionClass = new ReflectionClass($type);
-
-            $this->typeFactories[$reflectionClass->getName()] = $callableFactory;
-
-            // recurs into parents classes
-            $parentClass = $reflectionClass->getParentClass();
-            if ($parentClass) {
-                $this->registerTypeFactory($parentClass->getName(), $callableFactory);
-            }
-        } else {
-            $this->typeFactories[$type] = $callableFactory;
+            $this->registerFactoryForParents($containerFactory, $reflectionClass);
+            $this->registerFactoryForInterfaces($containerFactory, $reflectionClass);
         }
 
+        return $this;
     }
 
     /**
@@ -131,58 +144,54 @@ class Container
      */
     public function resolve($className)
     {
-
-        $className = trim($className, "\\");
-
-        if (!class_exists($className) && !interface_exists($className)) {
-            throw new ContainerException("Class/Interface '$className' does not exist");
-        }
-
-
-
-        $key = $className; // @note, this used to make lower case here, b/c auto loader might be case sensitive, but maybe not anymore
-        if (!isset($this->objects[$key])) {
-            $instance = $this->make($className);
-        }
-
-
-        return $this->objects[$key];
-
+        $object = $this->resolveClassName($className);
+        $this->invokeInjectMethods();
+        return $object;
     }
 
     /**
-     * Instantiates the given className
+     * @param ContainerFactory $containerFactory
      *
-     * @param $className
-     *
-     * @throws ContainerException
      * @return object
+     * @throws ContainerException
      */
-    public function make($className)
+    private function callFactory(ContainerFactory $containerFactory)
     {
-        $this->resolvingClasses[$className] = 1;
 
-        $reflectionClass = new ReflectionClass($className);
-        $key             = $reflectionClass->name;
+        if (!is_object($containerFactory->instance)) {
 
-        // Confirm it can be created.
-        if (!$reflectionClass->isInstantiable() && !isset($this->typeFactories[$key])) {
-            throw new ContainerException("The type " . $reflectionClass->name . " is not instantiable");
+            $instance = $this->callFunction($containerFactory->callable);
+            if (!is_object($instance)) {
+                $reflectionFunction = new \ReflectionFunction($containerFactory->callable);
+                $error              = sprintf("%s (%u:%u)", $reflectionFunction->getFileName(),
+                    $reflectionFunction->getStartLine(), $reflectionFunction->getEndLine());
+                throw new ContainerException("TypeFactory did not return an object. $error");
+            }
+            $containerFactory->instance = $instance;
         }
 
-        if (isset($this->typeFactories[$key])) {
-            $instance = $this->callFactory($this->typeFactories[$key]);
+        return $containerFactory->instance;
+    }
+
+    /**
+     * Will create an instance of the given class.
+     * Note: All constructor arguments must have 'resolvable' type hinting
+     *
+     * @param $reflectionClass
+     *
+     * @return mixed
+     */
+    private function createInstance(ReflectionClass $reflectionClass)
+    {
+        $constructorReflectMethod = $reflectionClass->getConstructor();
+
+        if ($constructorReflectMethod === null) { // no constructor.
+            $instance = $reflectionClass->newInstance();
         } else {
-            $instance = $this->createInstance($reflectionClass);
+            $args     = $this->resolveArguments($constructorReflectMethod);
+            $instance = $reflectionClass->newInstanceArgs($args);
         }
-
-        unset($this->resolvingClasses[$className]);
-
-        $this->register($instance);
-        $this->invokeInjectMethods($reflectionClass, $instance);
-
         return $instance;
-
     }
 
     /**
@@ -191,7 +200,7 @@ class Container
      * @return array
      * @throws ContainerException
      */
-    public function getSignature(\ReflectionFunctionAbstract $reflectionMethod)
+    private function getSignature(\ReflectionFunctionAbstract $reflectionMethod)
     {
         $params = $reflectionMethod->getParameters();
 
@@ -240,12 +249,62 @@ class Container
     }
 
     /**
+     * Will invoke the injection methods
+     */
+    private function invokeInjectMethods()
+    {
+
+        /** @var $injectMethod \ReflectionMethod */
+        /** @var mixed $instance */
+        while ($injectMethodAndInstance = array_shift($this->injectionMethods)) {
+            list($injectMethod, $instance) = $injectMethodAndInstance;
+            $args = $this->resolveArguments($injectMethod);
+            $injectMethod->invokeArgs($instance, $args);
+        }
+    }
+
+    /**
+     * Instantiates the given className
+     *
+     * @param $className
+     *
+     * @throws ContainerException
+     * @return object
+     */
+    private function make($className)
+    {
+
+        $this->resolvingClasses[$className] = 1;
+
+        $reflectionClass = new ReflectionClass($className);
+        $key             = $reflectionClass->name;
+
+        // Confirm it can be created.
+        if (!$reflectionClass->isInstantiable() && !isset($this->typeFactories[$key])) {
+            throw new ContainerException("The type " . $reflectionClass->name . " is not instantiable");
+        }
+
+        if (isset($this->typeFactories[$key])) {
+            $instance = $this->callFactory($this->typeFactories[$key]);
+        } else {
+            $instance = $this->createInstance($reflectionClass);
+        }
+
+        unset($this->resolvingClasses[$className]);
+
+        $this->registerType($key, $instance);
+        $this->registerInjectMethods($reflectionClass, $instance);
+
+        return $instance;
+    }
+
+    /**
      * @param \ReflectionFunctionAbstract $reflectionMethod
      *
      * @return array
      * @throws ContainerException
      */
-    public function resolveArguments(\ReflectionFunctionAbstract $reflectionMethod)
+    private function resolveArguments(\ReflectionFunctionAbstract $reflectionMethod)
     {
 
         $signature = $this->getSignature($reflectionMethod);
@@ -264,19 +323,36 @@ class Container
 
                 throw new ContainerException($msg);
             }
-            $args[$name] = $this->resolve($type);
+            $args[$name] = $this->resolveClassName($type);
         }
         return $args;
 
     }
 
+    private function resolveClassName($className)
+    {
+        $className = trim($className, "\\");
+
+        if (!class_exists($className) && !interface_exists($className)) {
+            throw new ContainerException("Class/Interface '$className' does not exist");
+        }
+
+        $key = $className; // @note, this used to make lower case here, b/c auto loader might be case sensitive, but maybe not anymore
+        if (!isset($this->objects[$key])) {
+            $this->make($className);
+        }
+
+        return $this->objects[$key];
+
+    }
+
     /**
-     * Will invoke any methods, who's name starts with 'inject'
+     * Will register any methods, who's name starts with 'inject'
      *
      * @param ReflectionClass $reflectionClass
      * @param                 $instance
      */
-    private function invokeInjectMethods(ReflectionClass $reflectionClass, $instance)
+    private function registerInjectMethods(ReflectionClass $reflectionClass, $instance)
     {
 
         // find methods matching /^inject/
@@ -290,93 +366,64 @@ class Container
         // Invoke the methods
         /** @var $injectMethod \ReflectionMethod */
         foreach ($injectMethods as $injectMethod) {
-            $args = $this->resolveArguments($injectMethod);
-            $injectMethod->invokeArgs($instance, $args);
+            $this->injectionMethods[] = [$injectMethod, $instance];
         }
     }
 
     /**
-     * Will create an instance of the given class.
-     * Note: All constructor arguments must have 'resolvable' type hinting
-     *
-     * @param $reflectionClass
-     *
-     * @return mixed
+     * @param                 $object
+     * @param ReflectionClass $reflectionClass
      */
-    private function createInstance(ReflectionClass $reflectionClass)
+    private function registerParents($object, ReflectionClass $reflectionClass)
     {
-        $constructorReflectMethod = $reflectionClass->getConstructor();
-
-        if ($constructorReflectMethod === null) { // no constructor.
-            $instance = $reflectionClass->newInstance();
-        } else {
-            $args     = $this->resolveArguments($constructorReflectMethod);
-            $instance = $reflectionClass->newInstanceArgs($args);
+        $parentClass = $reflectionClass->getParentClass();
+        if ($parentClass) {
+            $this->registerType($parentClass->getName(), $object);
+            $this->registerParents($object, $parentClass);
         }
-        return $instance;
-    }
-
-    public function callFunction($callable)
-    {
-
-        $reflectionFunction = new \ReflectionFunction($callable);
-
-        $args = $this->resolveArguments($reflectionFunction);
-
-        return $reflectionFunction->invokeArgs($args);
     }
 
     /**
-     * @param mixed  $class Either a string containing the name of the class to reflect, or an object.
-     * @param string $methodName
-     *
-     * @return mixed
+     * @param                 $object
+     * @param ReflectionClass $reflectionClass
      */
-    public function callMethod($class, $methodName)
+    private function registerInterfaces($object, ReflectionClass $reflectionClass)
     {
-        $reflectionClass  = new ReflectionClass($class);
-        $reflectionMethod = $reflectionClass->getMethod($methodName);
-        $args             = $this->resolveArguments($reflectionMethod);
-        return $reflectionMethod->invokeArgs($class, $args);
+        $interfaceNames = $reflectionClass->getInterfaceNames();
+        foreach ($interfaceNames as $interfaceName) {
+            $this->registerType($interfaceName, $object);
+        }
     }
 
     /**
-     * @param $callable
-     *
-     * @return object
-     * @throws ContainerException
+     * @param ContainerFactory $containerFactory
+     * @param ReflectionClass  $reflectionClass
      */
-    private function callFactory($callable)
+    private function registerFactoryForParents(ContainerFactory $containerFactory, ReflectionClass $reflectionClass)
     {
-
-        $instance = $this->callFunction($callable);
-
-        if (!is_object($instance)) {
-            $reflectionFunction = new \ReflectionFunction($callable);
-            $error              = sprintf(
-                "%s (%u:%u)",
-                $reflectionFunction->getFileName()
-                ,
-                $reflectionFunction->getStartLine()
-                ,
-                $reflectionFunction->getEndLine()
-            );
-
-            throw new ContainerException("TypeFactory did not return an object. $error");
+        $parentClass = $reflectionClass->getParentClass();
+        if ($parentClass) {
+            $this->typeFactories[$parentClass->getName()] = $containerFactory;
+            // recurse
+            $this->registerFactoryForParents($containerFactory, $parentClass);
         }
+    }
 
-        return $instance;
-
+    /**
+     * @param ContainerFactory $containerFactory
+     * @param ReflectionClass  $reflectionClass
+     */
+    private function registerFactoryForInterfaces(ContainerFactory $containerFactory, ReflectionClass $reflectionClass)
+    {
+        $interfaceNames = $reflectionClass->getInterfaceNames();
+        foreach ($interfaceNames as $interfaceName) {
+            $this->typeFactories[$interfaceName] = $containerFactory;
+        }
     }
 }
 
-/**
- * RFC 4122 Version 4 - Pseudo Random
- *
- * @return string
- * @deprecated Call UUID::v4() directly
- */
-function uuid_create()
+class ContainerFactory
 {
-    return UUID::v4();
+    public $instance;
+    public $callable;
 }

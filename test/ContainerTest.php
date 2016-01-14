@@ -37,16 +37,35 @@ class TestClassB {
 }
 
 class TestClassC {
+    public $classD;
     public function __construct(TestClassD $testClassD)
     {
+        $this->classD = $testClassD;
     }
 }
 
 
 class TestClassD {
+    public $classC;
     public function inject(TestClassC $testClassC) {
-
+        $this->classC = $testClassC;
     }
+
+}
+
+interface TestInterfaceA1 {
+
+}
+
+class TestClassA1 implements TestInterfaceA1 {
+
+}
+
+class TestClassA2 extends TestClassA1 {
+
+}
+
+class TestClassA3 extends TestClassA2 {
 
 }
 
@@ -110,18 +129,18 @@ class ContainerTest extends PHPUnit_Framework_TestCase
     /**
      * @covers Spineer::make
      */
-    public function testMakeThrowsExceptionForSingleton()
+    public function testResolveThrowsExceptionForSingleton()
     {
         $this->setExpectedException("Spine\\ContainerException");
-        $this->container->make("Spine\\ContainerTest_FakeClass_Cannot_Instantiate");
+        $this->container->resolve("Spine\\ContainerTest_FakeClass_Cannot_Instantiate");
     }
 
     /**
      */
-    public function testMake()
+    public function testResolve()
     {
 
-        $returned = $this->container->make("Spine\\ContainerTest_FakeClass_NeedsAClass");
+        $returned = $this->container->resolve("Spine\\ContainerTest_FakeClass_NeedsAClass");
 
         $this->assertInstanceOf("Spine\\ContainerTest_FakeClass_NeedsAClass", $returned);
 
@@ -201,7 +220,37 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
     public function testChickenAndEggFixWithInject() {
 
-        $this->container->resolve("Spine\\TestClassC");
+        $classC = $this->container->resolve("Spine\\TestClassC");
+
+        $this->assertInstanceOf("Spine\\TestClassC", $classC);
+
+        $this->assertInstanceOf("Spine\\TestClassD", $classC->classD);
+        $this->assertInstanceOf("Spine\\TestClassC", $classC->classD->classC);
+
+        $this->assertSame($classC, $classC->classD->classC);
+
+    }
+
+    public function testFactoryParentInterfaces() {
+
+
+        $factory = function() { return  new TestClassA3(); };
+
+        $this->container->registerTypeFactory("\\Spine\\TestClassA3", $factory);
+
+        $instance1 = $this->container->resolve("Spine\\TestClassA3");
+        $this->assertInstanceOf("Spine\\TestClassA3", $instance1);
+
+
+        $instance2 = $this->container->resolve("Spine\\TestClassA1");
+        $this->assertInstanceOf("Spine\\TestClassA1", $instance2);
+
+        $this->assertSame($instance1, $instance2);
+
+        $instance3 = $this->container->resolve("Spine\\TestInterfaceA1");
+        $this->assertInstanceOf("Spine\\TestClassA1", $instance3);
+        $this->assertSame($instance1, $instance3);
+
     }
 
 }
