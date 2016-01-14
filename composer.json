@@ -20,12 +20,12 @@
     },
     "autoload": {
         "classmap": [
-            "src/"
+            "src/",
+            "fakes/"
         ]
     },
     "autoload-dev": {
         "classmap": [
-            "src/",
             "test/"
         ]
     }
