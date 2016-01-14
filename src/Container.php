@@ -58,6 +58,7 @@ class Container
     {
         $reflectionFunction = new \ReflectionFunction($callable);
         $args               = $this->resolveArguments($reflectionFunction);
+        $this->invokeInjectMethods();
         return $reflectionFunction->invokeArgs($args);
     }
 
@@ -72,6 +73,7 @@ class Container
         $reflectionClass  = new ReflectionClass($class);
         $reflectionMethod = $reflectionClass->getMethod($methodName);
         $args             = $this->resolveArguments($reflectionMethod);
+        $this->invokeInjectMethods();
         return $reflectionMethod->invokeArgs($class, $args);
     }
 
