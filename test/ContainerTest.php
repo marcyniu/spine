@@ -253,4 +253,14 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
     }
 
+    public function testRegisterType()
+    {
+        $mock = $this->getMockBuilder('Spine\\TestClassA1')->disableOriginalConstructor()->disableProxyingToOriginalMethods()->getMock();
+        $this->container->registerType('Spine\\TestClassA1', $mock);
+
+        $actual = $this->container->resolve('Spine\\TestClassA1');
+        $this->assertSame($mock, $actual);
+
+    }
+
 }

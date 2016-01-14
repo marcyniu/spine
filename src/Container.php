@@ -101,7 +101,22 @@ class Container
      *
      * @return $this
      */
-    public function registerType($object, ReflectionClass $reflectionClass, $registerParentClasses)
+    public function registerType($className, $object, $registerParentClasses = false)
+    {
+        $reflectionClass  = new ReflectionClass($className);
+        $this->_registerType($object, $reflectionClass, $registerParentClasses);
+
+        return $this;
+    }
+
+    /**
+     * @param ReflectionClass $reflectionClass class/interface the object extends/implements
+     * @param object          $object
+     * @param bool            $registerParentClasses
+     *
+     * @return $this
+     */
+    private function _registerType($object, ReflectionClass $reflectionClass, $registerParentClasses)
     {
 
         $this->objects[$reflectionClass->getName()] = $object;
@@ -295,7 +310,7 @@ class Container
 
         unset($this->resolvingClasses[$className]);
 
-        $this->registerType($instance, $reflectionClass, true);
+        $this->_registerType($instance, $reflectionClass, true);
         $this->registerInjectMethods($reflectionClass, $instance);
 
         return $instance;
