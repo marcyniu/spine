@@ -1,7 +1,5 @@
 <?php
 /**
- *
- * @author Marcin Wojcik
  * @since  07/23/2015
  */
 
