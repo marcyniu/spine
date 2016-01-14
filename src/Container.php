@@ -89,27 +89,28 @@ class Container
     {
         $reflectionObject = new ReflectionObject($object);
 
-        $this->registerType($reflectionObject->getName(), $object);
-
-        // register parent classes also
-        if ($registerParentClasses) {
-            $this->registerParents($object, $reflectionObject);
-            $this->registerInterfaces($object, $reflectionObject);
-        }
+        $this->registerType($object, $reflectionObject, $registerParentClasses);
 
         return $this;
     }
 
     /**
-     * @param string $type Name of class/interface the object extends/implements
-     * @param object $object
+     * @param ReflectionClass $reflectionClass class/interface the object extends/implements
+     * @param object          $object
+     * @param bool            $registerParentClasses
      *
      * @return $this
      */
-    public function registerType($type, $object)
+    public function registerType($object, ReflectionClass $reflectionClass, $registerParentClasses)
     {
-        $type                 = trim($type, "\\"); // trim off any namespace delimiters
-        $this->objects[$type] = $object;
+
+        $this->objects[$reflectionClass->getName()] = $object;
+
+        // register parent classes also
+        if ($registerParentClasses) {
+            $this->registerParents($object, $reflectionClass);
+            $this->registerInterfaces($object, $reflectionClass);
+        }
         return $this;
     }
 
@@ -120,7 +121,7 @@ class Container
      *
      * @return $this
      */
-    public function registerTypeFactory($type, $callableFactory, $registerParents = true)
+    public function registerTypeFactory($type, $callableFactory, $registerParents = false)
     {
 
         $containerFactory           = new ContainerFactory();
@@ -294,7 +295,7 @@ class Container
 
         unset($this->resolvingClasses[$className]);
 
-        $this->registerType($key, $instance);
+        $this->registerType($instance, $reflectionClass, true);
         $this->registerInjectMethods($reflectionClass, $instance);
 
         return $instance;
@@ -380,7 +381,7 @@ class Container
     {
         $parentClass = $reflectionClass->getParentClass();
         if ($parentClass) {
-            $this->registerType($parentClass->getName(), $object);
+            $this->objects[$parentClass->getName()] = $object;
             $this->registerParents($object, $parentClass);
         }
     }
@@ -393,7 +394,7 @@ class Container
     {
         $interfaceNames = $reflectionClass->getInterfaceNames();
         foreach ($interfaceNames as $interfaceName) {
-            $this->registerType($interfaceName, $object);
+            $this->objects[$interfaceName] = $object;
         }
     }
 
