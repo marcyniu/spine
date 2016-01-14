@@ -16,6 +16,11 @@ class FrontController implements ControllerInterface
     protected $routes;
 
     /**
+     * @var Container
+     */
+    protected $container;
+
+    /**
      * @param Container $container
      * @param Routes    $routes
      */
