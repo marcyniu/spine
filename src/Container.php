@@ -89,20 +89,23 @@ class Container
     {
         $reflectionObject = new ReflectionObject($object);
 
-        $this->registerType($object, $reflectionObject, $registerParentClasses);
+        $this->_registerType($object, $reflectionObject, $registerParentClasses);
 
         return $this;
     }
 
     /**
-     * @param ReflectionClass $reflectionClass class/interface the object extends/implements
-     * @param object          $object
-     * @param bool            $registerParentClasses
+     * @param string $className class/interface Name
+     * @param object $object
+     * @param bool   $registerParentClasses
      *
      * @return $this
      */
     public function registerType($className, $object, $registerParentClasses = false)
     {
+        if (!is_string($className)) {
+            throw new \InvalidArgumentException('\$className must be string');
+        }
         $reflectionClass  = new ReflectionClass($className);
         $this->_registerType($object, $reflectionClass, $registerParentClasses);
 

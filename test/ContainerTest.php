@@ -92,6 +92,8 @@ class ContainerTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($newObject, $returned);
     }
 
+
+
     public function testRegisterParentClass()
     {
         $newObject = new ContainerTest_FakeClass_Extends_StdClass;
@@ -118,7 +120,23 @@ class ContainerTest extends PHPUnit_Framework_TestCase
         $returned = $this->container->resolve("stdClass");
         $this->assertInstanceOf("stdClass", $returned);
 
+
+
+        $this->container->registerTypeFactory(
+            "stdClass",
+            function (TestClassA $classA) {
+                return new TestClassB($classA);
+            }
+        );
+
+
+        $returned = $this->container->resolve("Spine\\TestClassC");
+        $this->assertInstanceOf("Spine\\TestClassC", $returned);
+
+
     }
+
+
 
     public function testResolveThrowsException()
     {
