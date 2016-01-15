@@ -2,7 +2,7 @@
 namespace Spine;
 
 use PHPUnit_Framework_TestCase;
-use stdClass;
+
 
 class ContainerCircularTest_ExampleController
 {
