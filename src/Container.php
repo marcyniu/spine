@@ -34,7 +34,7 @@ class Container
      *
      * @var array
      */
-    private $injectionMethods = [];
+    private $pendingInectionMethods = [];
 
     private $callIndex = 0;
 
@@ -181,7 +181,7 @@ class Container
         $this->buildTypeFactoryWrappers($reflectionClass);
 
         $object = $this->resolveClassName($reflectionClass->getName());
-        $this->invokeInjectMethods();
+        $this->invokePendingInjectFactories();
         return $object;
     }
 
@@ -208,11 +208,8 @@ class Container
             $injectionMethods = $this->getInjectMethods($reflectionClass);
             /** @var ReflectionMethod $injectionReflectionMethod */
             foreach($injectionMethods as $injectionReflectionMethod) {
-                $injectionFactories                       = $this->buildTypeFactoriesForFunctionArguments($constructorReflectMethod);
-                $typeFactoryWrapper->injectionFactories[] = $injectionFactories;
+                $typeFactoryWrapper->injectionMethods[] = $injectionReflectionMethod;
             }
-
-
 
         }
     }
@@ -228,7 +225,7 @@ class Container
         $signature = $this->getSignature($reflectionFunction);
         /** @var ReflectionClass $signatureReflectionClass */
         foreach ($signature as $argName => $signatureReflectionClass) {
-            $arguments[$argName] = $signatureReflectionClass->getName();
+            $arguments[$argName] = $signatureReflectionClass;
             $this->buildTypeFactoryWrappers($signatureReflectionClass);
         }
 
@@ -236,20 +233,20 @@ class Container
     }
 
     /**
-     * @param TypeFactoryWrapper $containerFactory
+     * @param TypeFactoryWrapper $factoryWrapper
      *
      * @return object
      * @throws ContainerException
      */
-    private function getFactoryWrapperInstance(TypeFactoryWrapper $containerFactory)
+    private function getFactoryWrapperInstance(TypeFactoryWrapper $factoryWrapper)
     {
 
-        if (!is_object($containerFactory->instance)) {
+        if (!is_object($factoryWrapper->instance)) {
 
-            $reflectionFunction = $containerFactory->factoryMethod;
+            $reflectionFunction = $factoryWrapper->factoryMethod;
 
             $args = [];
-            foreach ($containerFactory->factoryMethodArguments as $argClassName) {
+            foreach ($factoryWrapper->factoryMethodArguments as $argClassName) {
                 $args[] = $this->resolveClassName($argClassName);
             }
 
@@ -258,7 +255,7 @@ class Container
             if ($reflectionFunction->isClosure()) {
                 $instance = $reflectionFunction->invokeArgs($args);
             } elseif ($reflectionFunction->isConstructor()) {
-                $instance = $containerFactory->reflectionClass->newInstanceArgs($args);
+                $instance = $factoryWrapper->reflectionClass->newInstanceArgs($args);
             } else {
                 $instance = $reflectionFunction->invokeArgs($args);
             }
@@ -268,16 +265,16 @@ class Container
                     $reflectionFunction->getStartLine(), $reflectionFunction->getEndLine());
                 throw new ContainerException("TypeFactoryWrapper did not return an object. $error");
             }
-            $containerFactory->instance = $instance;
-
-            $injectionFactoryWrappers = $containerFactory->injectionFactories;
-            foreach($injectionFactoryWrappers as $injectionFactoryWrapper) {
-                $this->injectionMethods[] = $injectionFactoryWrapper;
-            }
+            $factoryWrapper->instance = $instance;
 
         }
 
-        return $containerFactory->instance;
+        while($pendingFactory = array_shift($factoryWrapper->injectionMethods)) {
+
+            $this->pendingInectionMethods[] = [$factoryWrapper->instance, $pendingFactory];
+        }
+
+        return $factoryWrapper->instance;
     }
 
     /**
@@ -343,7 +340,12 @@ class Container
         $methodArguments = $this->buildTypeFactoriesForFunctionArguments($reflectionMethod);
 
         $args = [];
-        foreach ($methodArguments as $className) {
+        /** @var ReflectionClass $reflectionClass */
+        foreach ($methodArguments as $reflectionClass) {
+            $className = $reflectionClass->getName();
+            if (!isset( $this->typeFactoryWrappers[$className])) {
+                throw new ContainerException("No factory wrappers for '$className'");
+            }
             $factoryContainer = $this->typeFactoryWrappers[$className];
             $args[] = $this->getFactoryWrapperInstance($factoryContainer);
         }
@@ -448,21 +450,16 @@ class Container
     /**
      * Will invoke the injection methods
      */
-    private function invokeInjectMethods()
+    private function invokePendingInjectFactories()
     {
-
-        return;
         /** @var $injectMethod \ReflectionMethod */
         /** @var mixed $instance */
-        while ($injectMethodAndInstance = array_shift($this->injectionMethods[$this->callIndex])) {
-            list($injectMethod, $instance) = $injectMethodAndInstance;
+        while ($instanceAndMethod = array_shift($this->pendingInectionMethods)) {
+            list($instance, $injectMethod) = $instanceAndMethod;
+
             $args = $this->resolveArguments($injectMethod);
             $injectMethod->invokeArgs($instance, $args);
         }
-
-        unset($this->injectionMethods[$this->callIndex]);
-
-        $this->callIndex--;
     }
 
 }
@@ -475,7 +472,7 @@ class TypeFactoryWrapper
     public $reflectionClass;
     public $instance;
     public $factoryMethodArguments = [];
-    public $injectionFactories;
+    public $injectionMethods;
 
     /**
      * @var \ReflectionFunction|\ReflectionMethod
