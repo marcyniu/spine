@@ -96,6 +96,21 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
     }
 
+    public function testBadFactory()
+    {
+        $this->setExpectedException("Spine\\ContainerException");
+
+        $factory = function () {
+            // doesn' return anything
+        };
+
+        $this->container->registerTypeFactory("Spine\\Container2Test_Test3", $factory);
+
+        $object = $this->container->resolve('Spine\\Container2Test_Test3');
+
+    }
+
+
     public function testCallFunction()
     {
         $function = function (Container2Test_Test2 $test2) {
@@ -129,7 +144,6 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
         $baseInstance = $this->container->resolve("Spine\\Container2Test_TestBase");
         $this->assertSame($returned, $baseInstance);
-
 
     }
 
@@ -194,7 +208,6 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
         $object = $this->container->resolve('Spine\\Container2Test_TestExtends');
         $this->assertInstanceOf('Spine\\Container2Test_TestExtends', $object);
-
 
         $baseObject = $this->container->resolve('Spine\\Container2Test_TestBase');
         $this->assertSame($object, $baseObject);
