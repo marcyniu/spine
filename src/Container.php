@@ -30,13 +30,15 @@ class Container
     private $resolvingClasses = [];
 
     /**
-     * Array of [<ReflectionMethod>, <instance>]
+     * Array of [$callIndex][<ReflectionMethod>, <instance>]
      *
      * Keeps track of any inject*() methods that need to be called after object construction
      *
      * @var array
      */
     private $injectionMethods = [];
+
+    private $callIndex = 0;
 
     /**
      *
@@ -56,8 +58,11 @@ class Container
      */
     public function callFunction($callable)
     {
+        $this->prepInjectionMethodList();
+
         $reflectionFunction = new \ReflectionFunction($callable);
         $args               = $this->resolveArguments($reflectionFunction);
+
         $this->invokeInjectMethods();
         return $reflectionFunction->invokeArgs($args);
     }
@@ -70,6 +75,8 @@ class Container
      */
     public function callMethod($class, $methodName)
     {
+        $this->prepInjectionMethodList();
+
         $reflectionClass  = new ReflectionClass($class);
         $reflectionMethod = $reflectionClass->getMethod($methodName);
         $args             = $this->resolveArguments($reflectionMethod);
@@ -165,6 +172,7 @@ class Container
      */
     public function resolve($className)
     {
+        $this->prepInjectionMethodList();
         $object = $this->resolveClassName($className);
         $this->invokeInjectMethods();
         return $object;
@@ -275,9 +283,12 @@ class Container
     private function invokeInjectMethods()
     {
 
+        $methods = $this->injectionMethods[$this->callIndex];
+        $this->callIndex--;
+
         /** @var $injectMethod \ReflectionMethod */
         /** @var mixed $instance */
-        while ($injectMethodAndInstance = array_shift($this->injectionMethods)) {
+        while ($injectMethodAndInstance = array_shift($methods)) {
             list($injectMethod, $instance) = $injectMethodAndInstance;
             $args = $this->resolveArguments($injectMethod);
             $injectMethod->invokeArgs($instance, $args);
@@ -294,7 +305,6 @@ class Container
      */
     private function make($className)
     {
-
         $this->resolvingClasses[$className] = 1;
 
         $reflectionClass = new ReflectionClass($className);
@@ -387,7 +397,7 @@ class Container
         // Invoke the methods
         /** @var $injectMethod \ReflectionMethod */
         foreach ($injectMethods as $injectMethod) {
-            $this->injectionMethods[] = [$injectMethod, $instance];
+            $this->injectionMethods[$this->callIndex][] = [$injectMethod, $instance];
         }
     }
 
@@ -440,6 +450,12 @@ class Container
         foreach ($interfaceNames as $interfaceName) {
             $this->typeFactories[$interfaceName] = $containerFactory;
         }
+    }
+
+    private function prepInjectionMethodList()
+    {
+        $this->callIndex++;
+        $this->injectionMethods[$this->callIndex] = [];
     }
 }
 
