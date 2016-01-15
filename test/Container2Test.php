@@ -200,8 +200,4 @@ class Container2Test extends PHPUnit_Framework_TestCase
         $this->assertSame($object, $baseObject);
     }
 
-
-
-
-
 }
