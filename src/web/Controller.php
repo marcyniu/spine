@@ -53,11 +53,7 @@ abstract class Controller extends BaseController implements ControllerInterface
             throw new HttpMethodNotAllowedException(sprintf("'%s->%s()' not implemented", $class, $methodName));
         }
 
-        $reflectionMethod = new ReflectionMethod($this, $methodName);
-
-        $args = $this->container->resolveArguments($reflectionMethod);
-
-        $reflectionMethod->invokeArgs($this, $args);
+        $this->container->callMethod($this, $methodName);
     }
 
 }
