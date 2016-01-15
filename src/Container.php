@@ -45,7 +45,7 @@ class Container
      */
     public function __construct()
     {
-        // register itself. Note: be careful with depending on the container, only factory like classes should ever need it....
+        // register itself. Note: be careful depending on the container, only factory like classes should ever need it....
         $this->register($this);
     }
 
