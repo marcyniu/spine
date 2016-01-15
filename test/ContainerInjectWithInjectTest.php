@@ -67,7 +67,6 @@ class ContainerInjectWithInjectTest extends PHPUnit_Framework_TestCase
         /** @var ContainerInjectWithInjectTest_ExampleService1 $service1 */
         $service1 = $this->container->resolve('Spine\ContainerInjectWithInjectTest_ExampleService1');
 
-
         $this->assertInstanceOf('Spine\ContainerInjectWithInjectTest_ExampleService1', $service1);
         $this->assertInstanceOf('Spine\ContainerInjectWithInjectTest_ExampleService2', $service1->service2);
         $this->assertInstanceOf('Spine\ContainerInjectWithInjectTest_ExampleService3', $service1->service2->service3);
