@@ -140,13 +140,10 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
     public function testResolveThrowsException()
     {
-        $this->setExpectedException("Spine\\ContainerException");
+        $this->setExpectedException("\\ReflectionException");
         $this->container->resolve("Non existent class");
     }
 
-    /**
-     * @covers Spineer::make
-     */
     public function testResolveThrowsExceptionForSingleton()
     {
         $this->setExpectedException("Spine\\ContainerException");
@@ -228,9 +225,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
         $factory = function(TestClassB $classB) { };
 
-        $this->setExpectedException(
-            "Spine\\ContainerException"
-        );
+        $this->setExpectedException("Spine\\ContainerException");
         $this->container->registerTypeFactory("Spine\\TestClassB", $factory);
         $this->container->resolve("Spine\\TestClassB");
     }
@@ -254,7 +249,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
         $factory = function() { return  new TestClassA3(); };
 
-        $this->container->registerTypeFactory("\\Spine\\TestClassA3", $factory);
+        $this->container->registerTypeFactory("\\Spine\\TestClassA3", $factory, true);
 
         $instance1 = $this->container->resolve("Spine\\TestClassA3");
         $this->assertInstanceOf("Spine\\TestClassA3", $instance1);
@@ -278,7 +273,6 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
         $actual = $this->container->resolve('Spine\\TestClassA1');
         $this->assertSame($mock, $actual);
-
     }
 
 }
