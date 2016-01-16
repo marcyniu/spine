@@ -16,9 +16,9 @@ use ReflectionObject;
 class Container
 {
     /**
-     * @var array <TypeFactoryWrapper>
+     * @var array <InstanceWrapper>
      */
-    private $typeFactoryWrappers = [];
+    private $instanceWrappers = [];
 
     /**
      * Used to detect circular __construct() dependencies
@@ -28,17 +28,15 @@ class Container
     private $resolvingClasses = [];
 
     /**
-     * Array of [$callIndex][<ReflectionMethod>, <instance>]
+     * Array of [<instance>, <ReflectionMethod>]
      *
-     * Keeps track of any inject*() methods that need to be called after object construction
+     * Track inject*() methods that need to be called after object construction
      *
      * @var array
      */
     private $pendingInjectionMethods = [];
 
-    /**
-     *
-     */
+
     public function __construct()
     {
         // register itself. Note: be careful depending on the container, only factory like classes should ever need it....
@@ -55,12 +53,12 @@ class Container
     public function callFunction($callable)
     {
         $reflectionFunction = new \ReflectionFunction($callable);
-        $args = $this->resolveArguments($reflectionFunction);
+        $args               = $this->resolveArguments($reflectionFunction);
         return $reflectionFunction->invokeArgs($args);
     }
 
     /**
-     * @param mixed  $class Either a string containing the name of the class to reflect, or an object.
+     * @param mixed  $class Either a class name, or an object.
      * @param string $methodName
      *
      * @return mixed
@@ -76,7 +74,7 @@ class Container
     }
 
     /**
-     * Registers and Object -- fluent
+     * Register an Object -- fluent
      *
      * @param      $object
      * @param bool $registerParentClasses
@@ -87,7 +85,7 @@ class Container
     {
         $reflectionObject = new ReflectionObject($object);
 
-        $this->_registerType($object, $reflectionObject, $registerParentClasses);
+        $this->createAndRegisterInstanceWrapper($object, $reflectionObject, $registerParentClasses);
 
         return $this;
     }
@@ -101,68 +99,26 @@ class Container
      */
     public function registerType($className, $object, $registerParentClasses = false)
     {
-
-        $typeFactoryWrapper = new TypeFactoryWrapper();
-        $typeFactoryWrapper->instance = $object;
-        $typeFactoryWrapper->reflectionClass = new ReflectionClass($className);;
-
-        $this->_registerTypeFactoryWrapper($typeFactoryWrapper);
-
-
-        // register parent classes also
-        if ($registerParentClasses) {
-            $this->registerParents($typeFactoryWrapper->reflectionClass, $typeFactoryWrapper);
-            $this->registerInterfaces($typeFactoryWrapper->reflectionClass, $typeFactoryWrapper);
-        }
+        $reflectionClass = new ReflectionClass($className);
+        $this->createAndRegisterInstanceWrapper($object, $reflectionClass, $registerParentClasses);
         return $this;
 
     }
 
-    /**
-     * @param ReflectionClass $reflectionClass class/interface the object extends/implements
-     * @param object          $object
-     * @param bool            $registerParentClasses
-     *
-     * @return $this
-     */
-    private function _registerType($object, ReflectionClass $reflectionClass, $registerParentClasses)
-    {
-        $typeFactoryWrapper = new TypeFactoryWrapper();
-        $typeFactoryWrapper->instance = $object;
-        $typeFactoryWrapper->reflectionClass = $reflectionClass;
-
-        $this->_registerTypeFactoryWrapper($typeFactoryWrapper);
-
-
-        // register parent classes also
-        if ($registerParentClasses) {
-            $this->registerParents($reflectionClass, $typeFactoryWrapper);
-            $this->registerInterfaces($reflectionClass, $typeFactoryWrapper);
-        }
-        return $this;
-    }
 
     /**
-     * @param string   $type
+     * @param string   $className
      * @param callable $callableFactory
      * @param bool     $registerParents Will also register the factory for the parent class of $type
      *
      * @return $this
      */
-    public function registerTypeFactory($type, $callableFactory, $registerParents = false)
+    public function registerTypeFactory($className, $callableFactory, $registerParents = false)
     {
 
-        $typeFactoryWrapper                         = new TypeFactoryWrapper();
-        $typeFactoryWrapper->reflectionClass        = new ReflectionClass($type);
-        $typeFactoryWrapper->factoryMethod          = new ReflectionFunction($callableFactory);
-        $typeFactoryWrapper->factoryMethodArguments = $this->buildTypeFactoriesForFunctionArguments($typeFactoryWrapper->factoryMethod);;
-
-        $this->_registerTypeFactoryWrapper($typeFactoryWrapper);
-
-        if ($registerParents) {
-            $this->registerParents($typeFactoryWrapper->reflectionClass , $typeFactoryWrapper);
-            $this->registerInterfaces($typeFactoryWrapper->reflectionClass , $typeFactoryWrapper);
-        }
+        $reflectionClass = new ReflectionClass($className);
+        $this->createAndRegisterInstanceWrapper(null, $reflectionClass, $registerParents,
+            new ReflectionFunction($callableFactory));
 
         return $this;
     }
@@ -177,39 +133,65 @@ class Container
     {
         $reflectionClass = new ReflectionClass($className);
 
-        $this->buildTypeFactoryWrappers($reflectionClass);
+        $this->buildInstanceWrapperForClass($reflectionClass);
 
         $object = $this->resolveReflectionClass($reflectionClass);
         $this->invokePendingInjectFactories();
         return $object;
     }
 
-    private function buildTypeFactoryWrappers(ReflectionClass $reflectionClass)
+
+    /**
+     * @param object                     $object
+     * @param ReflectionClass            $reflectionClass class/interface the object extends/implements
+     * @param bool                       $registerParentClasses
+     * @param ReflectionFunctionAbstract $factoryReflectionFunction
+     * @return InstanceWrapper $instanceWrapper
+     */
+    private function createAndRegisterInstanceWrapper($object, ReflectionClass $reflectionClass, $registerParentClasses, ReflectionFunctionAbstract $factoryReflectionFunction = null)
     {
-        if (!isset($this->typeFactoryWrappers[$reflectionClass->getName()])) {
+        $instanceWrapper                  = new InstanceWrapper();
+        $instanceWrapper->instance        = $object;
+        $instanceWrapper->reflectionClass = $reflectionClass;
 
-            $typeFactoryWrapper                  = new TypeFactoryWrapper();
-            $typeFactoryWrapper->reflectionClass = $reflectionClass;
+        if ($factoryReflectionFunction) {
+            $instanceWrapper->factoryMethod          = $factoryReflectionFunction;
+            $instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($factoryReflectionFunction);
+        }
 
-            // Register it now.
-            $this->_registerTypeFactoryWrapper($typeFactoryWrapper);
+
+        $this->registerInstanceWrapperForClass($instanceWrapper, $reflectionClass);
+
+
+        $injectionMethods = $this->getInjectMethods($reflectionClass);
+        /** @var ReflectionMethod $injectionReflectionMethod */
+        foreach ($injectionMethods as $injectionReflectionMethod) {
+            $instanceWrapper->injectionMethods[] = $injectionReflectionMethod;
+        }
+
+        // register parent classes also
+        if ($registerParentClasses) {
+            $this->registerParents($reflectionClass, $instanceWrapper);
+            $this->registerInterfaces($reflectionClass, $instanceWrapper);
+        }
+        return $instanceWrapper;
+    }
+
+    private function buildInstanceWrapperForClass(ReflectionClass $reflectionClass)
+    {
+        if (!isset($this->instanceWrappers[$reflectionClass->getName()])) {
+
+            $instanceWrapper = $this->createAndRegisterInstanceWrapper(null, $reflectionClass, false);
 
             $constructorReflectMethod = $reflectionClass->getConstructor();
 
             if ($constructorReflectMethod === null) { // no constructor.
-                $typeFactoryWrapper->instance = $reflectionClass->newInstance();
+                // go ahead an instantiate
+                $instanceWrapper->instance = $reflectionClass->newInstance();
             } else {
-                $typeFactoryWrapper->factoryMethod = $constructorReflectMethod;
-
-                $typeFactoryWrapper->factoryMethodArguments = $this->buildTypeFactoriesForFunctionArguments($constructorReflectMethod);
+                $instanceWrapper->factoryMethod = $constructorReflectMethod;
+                $instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($instanceWrapper->factoryMethod);
             }
-
-            $injectionMethods = $this->getInjectMethods($reflectionClass);
-            /** @var ReflectionMethod $injectionReflectionMethod */
-            foreach($injectionMethods as $injectionReflectionMethod) {
-                $typeFactoryWrapper->injectionMethods[] = $injectionReflectionMethod;
-            }
-
         }
     }
 
@@ -218,26 +200,26 @@ class Container
      *
      * @return array
      */
-    private function buildTypeFactoriesForFunctionArguments(ReflectionFunctionAbstract $reflectionFunction)
+    private function buildArgumentsInstanceWrappersForFunction(ReflectionFunctionAbstract $reflectionFunction)
     {
         $arguments = [];
         $signature = $this->getSignature($reflectionFunction);
         /** @var ReflectionClass $signatureReflectionClass */
         foreach ($signature as $argName => $signatureReflectionClass) {
             $arguments[$argName] = $signatureReflectionClass;
-            $this->buildTypeFactoryWrappers($signatureReflectionClass);
+            $this->buildInstanceWrapperForClass($signatureReflectionClass);
         }
 
         return $arguments;
     }
 
     /**
-     * @param TypeFactoryWrapper $factoryWrapper
+     * @param InstanceWrapper $factoryWrapper
      *
      * @return object
      * @throws ContainerException
      */
-    private function getFactoryWrapperInstance(TypeFactoryWrapper $factoryWrapper)
+    private function getInstanceFromWrapper(InstanceWrapper $factoryWrapper)
     {
 
         if (!is_object($factoryWrapper->instance)) {
@@ -249,13 +231,12 @@ class Container
                 $args[] = $this->resolveReflectionClass($reflectionClass);
             }
 
-            /** @var ReflectionFunctionAbstract $reflectionFunction */
+            /** @var ReflectionFunction|ReflectionMethod $reflectionFunction */
             if ($reflectionFunction->isClosure()) {
-                /** @var ReflectionFunction $reflectionFunction */
                 $instance = $reflectionFunction->invokeArgs($args);
             } elseif ($reflectionFunction->isConstructor()) {
                 if (!$reflectionFunction->getDeclaringClass()->isInstantiable()) {
-                    throw new ContainerException("Cannot call Private Constructor");
+                    throw new ContainerException("Cannot call private constructor for " . $reflectionFunction->getDeclaringClass()->getName());
                 }
                 $instance = $factoryWrapper->reflectionClass->newInstanceArgs($args);
             } else {
@@ -263,16 +244,15 @@ class Container
             }
 
             if (!is_object($instance)) {
-                $error = sprintf("%s (%u:%u)", $reflectionFunction->getFileName(),
-                    $reflectionFunction->getStartLine(), $reflectionFunction->getEndLine());
-                throw new ContainerException("TypeFactoryWrapper did not return an object. $error");
+                $error = sprintf("%s (%u:%u)", $reflectionFunction->getFileName(), $reflectionFunction->getStartLine(),
+                    $reflectionFunction->getEndLine());
+                throw new ContainerException("InstanceWrapper did not return an object. $error");
             }
             $factoryWrapper->instance = $instance;
 
         }
 
-        while($pendingFactory = array_shift($factoryWrapper->injectionMethods)) {
-
+        while ($pendingFactory = array_shift($factoryWrapper->injectionMethods)) {
             $this->pendingInjectionMethods[] = [$factoryWrapper->instance, $pendingFactory];
         }
 
@@ -297,14 +277,10 @@ class Container
                 $reflectionClass = $reflectionParameter->getClass();
             } catch (ReflectionException $e) {
                 /** @noinspection PhpUndefinedFieldInspection */
-                $msg = sprintf(
-                    "Method '%s:%s()' has unknown type hint for '%s' parameter, found in %s on line %u",
+                $msg = sprintf("Method '%s:%s()' has unknown type hint for '%s' parameter, found in %s on line %u",
                     $reflectionParameter->getDeclaringFunction()->class,
-                    $reflectionParameter->getDeclaringFunction()->name,
-                    $reflectionParameter->name,
-                    $reflectionMethod->getFileName(),
-                    $reflectionMethod->getEndLine()
-                );
+                    $reflectionParameter->getDeclaringFunction()->name, $reflectionParameter->name,
+                    $reflectionMethod->getFileName(), $reflectionMethod->getEndLine());
                 throw new ContainerException($msg, 999, $e);
             }
 
@@ -313,14 +289,10 @@ class Container
                     continue; // skip adding this parameter.. will break for mixed signatures.
                 }
                 /** @noinspection PhpUndefinedFieldInspection */
-                $msg = sprintf(
-                    "Method '%s:%s()' has no type hint  and no default value for '%s' parameter, found in %s on line %u",
+                $msg = sprintf("Method '%s:%s()' has no type hint  and no default value for '%s' parameter, found in %s on line %u",
                     $reflectionParameter->getDeclaringFunction()->class,
-                    $reflectionParameter->getDeclaringFunction()->name,
-                    $reflectionParameter->name,
-                    $reflectionMethod->getFileName(),
-                    $reflectionMethod->getEndLine()
-                );
+                    $reflectionParameter->getDeclaringFunction()->name, $reflectionParameter->name,
+                    $reflectionMethod->getFileName(), $reflectionMethod->getEndLine());
                 throw new ContainerException($msg);
 
             }
@@ -339,38 +311,20 @@ class Container
     private function resolveArguments(\ReflectionFunctionAbstract $reflectionMethod)
     {
 
-        $methodArguments = $this->buildTypeFactoriesForFunctionArguments($reflectionMethod);
+        $methodArguments = $this->buildArgumentsInstanceWrappersForFunction($reflectionMethod);
 
         $args = [];
         /** @var ReflectionClass $reflectionClass */
         foreach ($methodArguments as $reflectionClass) {
             $className = $reflectionClass->getName();
-            if (!isset( $this->typeFactoryWrappers[$className])) {
+            if (!isset($this->instanceWrappers[$className])) {
                 throw new ContainerException("No factory wrappers for '$className'");
             }
-            $factoryContainer = $this->typeFactoryWrappers[$className];
-            $args[] = $this->getFactoryWrapperInstance($factoryContainer);
+            $factoryContainer = $this->instanceWrappers[$className];
+            $args[]           = $this->getInstanceFromWrapper($factoryContainer);
         }
 
         return $args;
-
-
-//            if (isset($this->resolvingClasses[$type])) {
-//
-//                if ($reflectionMethod instanceof \ReflectionFunction) {
-//                    /** @var \ReflectionFunction $reflectionMethod */
-//                    $msg = sprintf('Circular Reference Detected. Function defined in "%s:%s" requires type "%s".',
-//                        $reflectionMethod->getFileName(), $reflectionMethod->getEndLine(), $type);
-//                } else {
-//                    /** @var \ReflectionMethod $reflectionMethod */
-//                    $msg = sprintf('Circular Reference Detected. Method "%s::%s" defined in "%s:%s requires type "%s".',
-//                        $reflectionMethod->class, $reflectionMethod->getName(), $reflectionMethod->getFileName(),
-//                        $reflectionMethod->getEndLine(), $type);
-//                }
-//
-//                throw new ContainerException($msg);
-//            }
-
 
     }
 
@@ -382,9 +336,9 @@ class Container
         }
         $this->resolvingClasses[$reflectionClass->getName()] = 1;
 
-        /** @var TypeFactoryWrapper $factoryWrapper */
-        $factoryWrapper = $this->typeFactoryWrappers[$reflectionClass->getName()];
-        $object         = $this->getFactoryWrapperInstance($factoryWrapper);;
+        /** @var InstanceWrapper $factoryWrapper */
+        $factoryWrapper = $this->instanceWrappers[$reflectionClass->getName()];
+        $object         = $this->getInstanceFromWrapper($factoryWrapper);;
 
         unset($this->resolvingClasses[$reflectionClass->getName()]);
 
@@ -392,65 +346,54 @@ class Container
     }
 
     /**
-     * @param ReflectionClass    $reflectionClass
-     * @param TypeFactoryWrapper $typeFactoryWrapper
+     * @param ReflectionClass $reflectionClass
+     * @param InstanceWrapper $instanceWrapper
      */
-    private function registerParents(ReflectionClass $reflectionClass, TypeFactoryWrapper $typeFactoryWrapper)
+    private function registerParents(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper)
     {
         $parentReflectionClass = $reflectionClass->getParentClass();
         if ($parentReflectionClass) {
-            $this->_registerTypeFactoryWrapper($typeFactoryWrapper, $parentReflectionClass);
-            $this->registerParents($parentReflectionClass, $typeFactoryWrapper);
+            $this->registerInstanceWrapperForClass($instanceWrapper, $parentReflectionClass);
+            $this->registerParents($parentReflectionClass, $instanceWrapper);
         }
     }
 
     /**
-     * @param ReflectionClass    $reflectionClass
-     * @param TypeFactoryWrapper $typeFactoryWrapper
+     * @param ReflectionClass $reflectionClass
+     * @param InstanceWrapper $instanceWrapper
      */
-    private function registerInterfaces(ReflectionClass $reflectionClass, TypeFactoryWrapper $typeFactoryWrapper)
+    private function registerInterfaces(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper)
     {
         $interfaces = $reflectionClass->getInterfaces();
         /** @var ReflectionClass $interfacesReflectionClass */
         foreach ($interfaces as $interfacesReflectionClass) {
-            $this->_registerTypeFactoryWrapper($typeFactoryWrapper, $interfacesReflectionClass);
+            $this->registerInstanceWrapperForClass($instanceWrapper, $interfacesReflectionClass);
         }
     }
 
 
-
-    private function _registerTypeFactoryWrapper(TypeFactoryWrapper $typeFactoryWrapper, ReflectionClass $reflectionClass = null)
+    private function registerInstanceWrapperForClass(InstanceWrapper $instanceWrapper, ReflectionClass $reflectionClass)
     {
-        if (empty($reflectionClass)) {
-            $reflectionClass = $typeFactoryWrapper->reflectionClass;
-        }
-
-        $className = $reflectionClass->getName();
-        $this->typeFactoryWrappers[$className] = $typeFactoryWrapper;
+        $className                          = $reflectionClass->getName();
+        $this->instanceWrappers[$className] = $instanceWrapper;
     }
 
     /**
-     * Will register any methods, who's name starts with 'inject'
+     * Will return any methods, whose name starts with 'inject'
      *
      * @param ReflectionClass $reflectionClass
      *
-     * @return array
+     * @return array of <ReflectionMethod>
      */
     private function getInjectMethods(ReflectionClass $reflectionClass)
     {
-
         // find methods matching /^inject/
-        $injectMethods = (array_filter(
-            $reflectionClass->getMethods(),
-            function (\ReflectionMethod $reflectionMethod) {
-                return (preg_match("/^inject/", $reflectionMethod->getName()));
-            }
-        ));
+        $injectMethods = (array_filter($reflectionClass->getMethods(), function (\ReflectionMethod $reflectionMethod) {
+            return (preg_match("/^inject/", $reflectionMethod->getName()));
+        }));
 
         return $injectMethods;
     }
-
-
 
     /**
      * Will invoke the injection methods
@@ -469,14 +412,26 @@ class Container
 
 }
 
-class TypeFactoryWrapper
+class InstanceWrapper
 {
     /**
      * @var ReflectionClass
      */
     public $reflectionClass;
+
+    /**
+     * @var object
+     */
     public $instance;
+
+    /**
+     * @var array
+     */
     public $factoryMethodArguments = [];
+
+    /**
+     * @var [<Callable>]
+     */
     public $injectionMethods = [];
 
     /**
