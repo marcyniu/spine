@@ -15,6 +15,10 @@ use ReflectionObject;
  */
 class Container
 {
+    const PARENTS_REGISTER_IF_NOT_REGISTERED = "PARENTS_REGISTER_IF_NOT_REGISTERED";
+    const PARENTS_REGISTER_ALWAYS = "PARENTS_REGISTER_ALWAYS";
+    const PARENTS_REGISTER_NEVER = "PARENTS_REGISTER_NEVER";
+
     /**
      * @var array <InstanceWrapper>
      */
@@ -77,15 +81,16 @@ class Container
      * Register an Object -- fluent
      *
      * @param      $object
-     * @param bool $registerParentClasses
+     * @param bool $registerParents
      *
      * @return Container
      */
-    public function register($object, $registerParentClasses = true)
+    public function register($object, $registerParents = true)
     {
         $reflectionObject = new ReflectionObject($object);
 
-        $this->createAndRegisterInstanceWrapper($object, $reflectionObject, $registerParentClasses);
+        $this->createAndRegisterInstanceWrapper($object, $reflectionObject,
+            $registerParents ? self::PARENTS_REGISTER_ALWAYS : self::PARENTS_REGISTER_NEVER);
 
         return $this;
     }
@@ -93,14 +98,15 @@ class Container
     /**
      * @param string $className class/interface Name
      * @param object $object
-     * @param bool   $registerParentClasses
+     * @param bool   $registerParents
      *
      * @return $this
      */
-    public function registerType($className, $object, $registerParentClasses = false)
+    public function registerType($className, $object, $registerParents = false)
     {
         $reflectionClass = new ReflectionClass($className);
-        $this->createAndRegisterInstanceWrapper($object, $reflectionClass, $registerParentClasses);
+        $this->createAndRegisterInstanceWrapper($object, $reflectionClass,
+            $registerParents ? self::PARENTS_REGISTER_ALWAYS : self::PARENTS_REGISTER_NEVER);
         return $this;
 
     }
@@ -115,9 +121,14 @@ class Container
      */
     public function registerTypeFactory($className, $callableFactory, $registerParents = false)
     {
+        if (!is_bool($registerParents)) {
+            throw new \InvalidArgumentException(sprintf('$registerParents must be bool, but got %s value: %s',
+                gettype($registerParents), $registerParents));
+        }
 
         $reflectionClass = new ReflectionClass($className);
-        $this->createAndRegisterInstanceWrapper(null, $reflectionClass, $registerParents,
+        $this->createAndRegisterInstanceWrapper(null, $reflectionClass,
+            $registerParents ? self::PARENTS_REGISTER_ALWAYS : self::PARENTS_REGISTER_NEVER,
             new ReflectionFunction($callableFactory));
 
         return $this;
@@ -144,19 +155,19 @@ class Container
     /**
      * @param object                     $object
      * @param ReflectionClass            $reflectionClass class/interface the object extends/implements
-     * @param bool                       $registerParentClasses
+     * @param string                     $registerParents one the self::REGISTER_PARENTS constants
      * @param ReflectionFunctionAbstract $factoryReflectionFunction
      * @return InstanceWrapper $instanceWrapper
      */
-    private function createAndRegisterInstanceWrapper($object, ReflectionClass $reflectionClass, $registerParentClasses, ReflectionFunctionAbstract $factoryReflectionFunction = null)
+    private function createAndRegisterInstanceWrapper($object, ReflectionClass $reflectionClass, $registerParents, ReflectionFunctionAbstract $factoryReflectionFunction = null)
     {
         $instanceWrapper                  = new InstanceWrapper();
         $instanceWrapper->instance        = $object;
         $instanceWrapper->reflectionClass = $reflectionClass;
 
         if ($factoryReflectionFunction) {
-            $instanceWrapper->factoryMethod          = $factoryReflectionFunction;
-            $instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($factoryReflectionFunction);
+            $instanceWrapper->factoryMethod = $factoryReflectionFunction;
+            //$instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($factoryReflectionFunction);
         }
 
 
@@ -169,11 +180,10 @@ class Container
             $instanceWrapper->injectionMethods[] = $injectionReflectionMethod;
         }
 
-        // register parent classes also
-        if ($registerParentClasses) {
-            $this->registerParents($reflectionClass, $instanceWrapper);
-            $this->registerInterfaces($reflectionClass, $instanceWrapper);
-        }
+
+        $this->registerParentClasses($reflectionClass, $instanceWrapper, $registerParents);
+        $this->registerInterfaces($reflectionClass, $instanceWrapper, $registerParents);
+
         return $instanceWrapper;
     }
 
@@ -181,7 +191,8 @@ class Container
     {
         if (!isset($this->instanceWrappers[$reflectionClass->getName()])) {
 
-            $instanceWrapper = $this->createAndRegisterInstanceWrapper(null, $reflectionClass, false);
+            $instanceWrapper = $this->createAndRegisterInstanceWrapper(null, $reflectionClass,
+                self::PARENTS_REGISTER_IF_NOT_REGISTERED);
 
             $constructorReflectMethod = $reflectionClass->getConstructor();
 
@@ -190,7 +201,7 @@ class Container
                 $instanceWrapper->instance = $reflectionClass->newInstance();
             } else {
                 $instanceWrapper->factoryMethod = $constructorReflectMethod;
-                $instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($instanceWrapper->factoryMethod);
+                //$instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($instanceWrapper->factoryMethod);
             }
         }
     }
@@ -214,20 +225,21 @@ class Container
     }
 
     /**
-     * @param InstanceWrapper $factoryWrapper
+     * @param InstanceWrapper $instanceWrapper
      *
      * @return object
      * @throws ContainerException
      */
-    private function getInstanceFromWrapper(InstanceWrapper $factoryWrapper)
+    private function getInstanceFromWrapper(InstanceWrapper $instanceWrapper)
     {
 
-        if (!is_object($factoryWrapper->instance)) {
+        if (!is_object($instanceWrapper->instance)) {
 
-            $reflectionFunction = $factoryWrapper->factoryMethod;
+            $reflectionFunction                      = $instanceWrapper->factoryMethod;
+            $instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($instanceWrapper->factoryMethod);
 
             $args = [];
-            foreach ($factoryWrapper->factoryMethodArguments as $reflectionClass) {
+            foreach ($instanceWrapper->factoryMethodArguments as $reflectionClass) {
                 $args[] = $this->resolveReflectionClass($reflectionClass);
             }
 
@@ -235,10 +247,10 @@ class Container
             if ($reflectionFunction->isClosure()) {
                 $instance = $reflectionFunction->invokeArgs($args);
             } elseif ($reflectionFunction->isConstructor()) {
-                if (!$reflectionFunction->getDeclaringClass()->isInstantiable()) {
-                    throw new ContainerException("Cannot call private constructor for " . $reflectionFunction->getDeclaringClass()->getName());
+                if (!$instanceWrapper->reflectionClass->isInstantiable()) {
+                    throw new ContainerException("Cannot call Private Constructor or Abstract Class for " . $reflectionFunction->getDeclaringClass()->getName());
                 }
-                $instance = $factoryWrapper->reflectionClass->newInstanceArgs($args);
+                $instance = $instanceWrapper->reflectionClass->newInstanceArgs($args);
             } else {
                 $instance = $reflectionFunction->invokeArgs($args);
             }
@@ -248,15 +260,15 @@ class Container
                     $reflectionFunction->getEndLine());
                 throw new ContainerException("InstanceWrapper did not return an object. $error");
             }
-            $factoryWrapper->instance = $instance;
+            $instanceWrapper->instance = $instance;
 
         }
 
-        while ($pendingFactory = array_shift($factoryWrapper->injectionMethods)) {
-            $this->pendingInjectionMethods[] = [$factoryWrapper->instance, $pendingFactory];
+        while ($pendingFactory = array_shift($instanceWrapper->injectionMethods)) {
+            $this->pendingInjectionMethods[] = [$instanceWrapper->instance, $pendingFactory];
         }
 
-        return $factoryWrapper->instance;
+        return $instanceWrapper->instance;
     }
 
     /**
@@ -336,9 +348,9 @@ class Container
         }
         $this->resolvingClasses[$reflectionClass->getName()] = 1;
 
-        /** @var InstanceWrapper $factoryWrapper */
-        $factoryWrapper = $this->instanceWrappers[$reflectionClass->getName()];
-        $object         = $this->getInstanceFromWrapper($factoryWrapper);;
+        /** @var InstanceWrapper $instanceWrapper */
+        $instanceWrapper = $this->instanceWrappers[$reflectionClass->getName()];
+        $object          = $this->getInstanceFromWrapper($instanceWrapper);;
 
         unset($this->resolvingClasses[$reflectionClass->getName()]);
 
@@ -348,26 +360,33 @@ class Container
     /**
      * @param ReflectionClass $reflectionClass
      * @param InstanceWrapper $instanceWrapper
+     * @param string          $registerParents one the self::REGISTER_PARENTS constants
      */
-    private function registerParents(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper)
+    private function registerParentClasses(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper, $registerParents)
     {
         $parentReflectionClass = $reflectionClass->getParentClass();
         if ($parentReflectionClass) {
-            $this->registerInstanceWrapperForClass($instanceWrapper, $parentReflectionClass);
-            $this->registerParents($parentReflectionClass, $instanceWrapper);
+            if ($this->shouldRegisterParent($parentReflectionClass, $registerParents)) {
+                $this->registerInstanceWrapperForClass($instanceWrapper, $parentReflectionClass);
+                $this->registerParentClasses($parentReflectionClass, $instanceWrapper, $registerParents);
+            }
+
         }
     }
 
     /**
      * @param ReflectionClass $reflectionClass
      * @param InstanceWrapper $instanceWrapper
+     * @param string          $registerParents one the self::REGISTER_PARENTS constants
      */
-    private function registerInterfaces(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper)
+    private function registerInterfaces(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper, $registerParents)
     {
         $interfaces = $reflectionClass->getInterfaces();
         /** @var ReflectionClass $interfacesReflectionClass */
         foreach ($interfaces as $interfacesReflectionClass) {
-            $this->registerInstanceWrapperForClass($instanceWrapper, $interfacesReflectionClass);
+            if ($this->shouldRegisterParent($interfacesReflectionClass, $registerParents)) {
+                $this->registerInstanceWrapperForClass($instanceWrapper, $interfacesReflectionClass);
+            }
         }
     }
 
@@ -408,6 +427,38 @@ class Container
             $args = $this->resolveArguments($injectMethod);
             $injectMethod->invokeArgs($instance, $args);
         }
+    }
+
+    /**
+     * @param ReflectionClass $parentReflectClass
+     * @param                 $registerParents one the self::REGISTER_PARENTS constants
+     * @return bool
+     */
+    private function shouldRegisterParent(\ReflectionClass $parentReflectClass, $registerParents)
+    {
+        $shouldRegister = false;
+        switch ($registerParents) {
+
+            case self::PARENTS_REGISTER_ALWAYS:
+                $shouldRegister = true;
+                break;
+
+            case self::PARENTS_REGISTER_NEVER:
+                $shouldRegister = false;
+                break;
+
+            case self::PARENTS_REGISTER_IF_NOT_REGISTERED:
+                $shouldRegister = !isset($this->instanceWrappers[$parentReflectClass->getName()]);
+                break;
+
+            default:
+                throw new \RuntimeException("Unknow value of '$registerParents' for \$registerParents");
+                break;
+
+        }
+
+        return $shouldRegister;
+
     }
 
 }

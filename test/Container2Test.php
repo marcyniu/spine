@@ -12,17 +12,28 @@ abstract class Container2Test_TestBase
 {
 }
 
+class Container2Test_NeedsBase
+{
+    public function __construct(Container2Test_TestBase $testBase)
+    {
+    }
+}
+
 interface Container2Test_Interface
 {
 }
 
-class Container2Test_TestExtends extends  Container2Test_TestBase implements Container2Test_Interface{
+class Container2Test_TestExtends extends Container2Test_TestBase implements Container2Test_Interface
+{
+    public function __construct(Container2Test_Test1 $test1)
+    {
+    }
+}
+
+class Container2Test_TestExtendsMore extends Container2Test_TestExtends
+{
 
 }
-class Container2Test_TestExtendsMore extends  Container2Test_TestExtends {
-
-}
-
 
 
 class Container2Test_Test2
@@ -50,6 +61,16 @@ class Container2Test_CallMethod
     public function testMethod(Container2Test_Test2 $test2)
     {
         $this->test2 = $test2;
+    }
+}
+
+class Container2Test_ScalarInConstructor
+{
+    private $name;
+
+    public function __construct($name)
+    {
+        $this->name = $name;
     }
 }
 
@@ -132,7 +153,7 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
     public function testRegisterWithParents()
     {
-        $newObject = new Container2Test_TestExtends();
+        $newObject = new Container2Test_TestExtends(new Container2Test_Test1);
         $this->container->register($newObject);
 
         $returned = $this->container->resolve("Spine\\Container2Test_TestExtends");
@@ -150,7 +171,7 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
     public function testRegisterWithOutParents()
     {
-        $newObject = new Container2Test_TestExtends();
+        $newObject = new Container2Test_TestExtends(new Container2Test_Test1);
         $this->container->register($newObject);
 
         $returned = $this->container->resolve("Spine\\Container2Test_TestExtends");
@@ -161,7 +182,7 @@ class Container2Test extends PHPUnit_Framework_TestCase
         $this->assertSame($returned, $baseInstance);
 
 
-        $newerObject = new Container2Test_TestExtendsMore();
+        $newerObject = new Container2Test_TestExtendsMore(new Container2Test_Test1);
         $this->container->register($newerObject, false);
 
         $newerResolved = $this->container->resolve("Spine\\Container2Test_TestExtendsMore");
@@ -172,22 +193,25 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
     public function testRegisterTypeNoParents()
     {
-        $newObject = new Container2Test_TestExtends();
 
+        // register what the base will be
+        $newObject = new Container2Test_TestExtends(new Container2Test_Test1);
         $this->container->registerType("Spine\\Container2Test_TestBase", $newObject);
 
-        $returned = $this->container->resolve("Spine\\Container2Test_TestExtends");
-        $this->assertNotSame($newObject, $returned);
+        // later we ask for new version the extended class
+        $newExtendedVersion = $this->container->resolve("Spine\\Container2Test_TestExtends");
+        $this->assertNotSame($newObject, $newExtendedVersion); // should not be the same as the first
 
 
-        $baseInstance = $this->container->resolve("Spine\\Container2Test_TestBase");
-        $this->assertSame($newObject, $baseInstance);
+        // later need the base
+        $anotherBaseInstance = $this->container->resolve("Spine\\Container2Test_TestBase");
+        $this->assertSame($newObject, $anotherBaseInstance); // should be same as first (not second)
     }
 
 
     public function testRegisterTypeWithParents()
     {
-        $newObject = new Container2Test_TestExtendsMore();
+        $newObject = new Container2Test_TestExtendsMore(new Container2Test_Test1);
 
         $this->container->registerType("Spine\\Container2Test_TestExtends", $newObject, true);
 
@@ -200,7 +224,7 @@ class Container2Test extends PHPUnit_Framework_TestCase
     public function testFactoryWithParents()
     {
         $factory = function () {
-            $obj              = new Container2Test_TestExtends();
+            $obj = new Container2Test_TestExtends(new Container2Test_Test1);
             return $obj;
         };
 
@@ -213,4 +237,43 @@ class Container2Test extends PHPUnit_Framework_TestCase
         $this->assertSame($object, $baseObject);
     }
 
+    public function testConstructorWithScalar()
+    {
+        $this->setExpectedException("Spine\\ContainerException");
+        $this->container->resolve("Spine\\Container2Test_ScalarInConstructor");
+
+    }
+
+    public function testConstructorWithScalarForFactory()
+    {
+
+        $factory1 = function (Container2Test_ScalarInConstructor $object) {
+            return new Container2Test_Test1();
+        };
+
+        $factory2 = function () {
+            return new Container2Test_ScalarInConstructor('foo');
+        };
+
+
+        $this->container->registerTypeFactory("Spine\\Container2Test_Test1", $factory1);
+        $this->container->registerTypeFactory("Spine\\Container2Test_ScalarInConstructor", $factory2);
+
+    }
+
+
+    public function testChildFactoryOnlyCalled()
+    {
+        $factory = function () {
+            $obj = new Container2Test_TestExtends(new Container2Test_Test1);
+            return $obj;
+        };
+
+        $this->container->registerTypeFactory("Spine\\Container2Test_TestExtends", $factory, true);
+
+        $object = $this->container->resolve("Spine\\Container2Test_NeedsBase");
+        $this->assertInstanceOf('Spine\\Container2Test_NeedsBase', $object);
+
+
+    }
 }
