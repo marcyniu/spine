@@ -32,13 +32,22 @@ class Container
     private $resolvingClasses = [];
 
     /**
-     * Array of [<instance>, <ReflectionMethod>]
+     * Array of [$this->$levelDepth][ [<instance>, <ReflectionMethod>], ... ]
      *
      * Track inject*() methods that need to be called after object construction
      *
      * @var array
      */
     private $pendingInjectionMethods = [];
+
+    /**
+     * Tracks the "depth" of public calls
+     *
+     * Used to resolve $this->pendingInjectionMethods
+     *
+     * @var int
+     */
+    private $levelDepth = -1;
 
 
     public function __construct()
@@ -56,9 +65,12 @@ class Container
      */
     public function callFunction($callable)
     {
+        $this->increaseDepth();
         $reflectionFunction = new \ReflectionFunction($callable);
         $args               = $this->resolveArguments($reflectionFunction);
-        return $reflectionFunction->invokeArgs($args);
+        $obj                = $reflectionFunction->invokeArgs($args);
+        $this->invokePendingInjectFactories();
+        return $obj;
     }
 
     /**
@@ -69,12 +81,15 @@ class Container
      */
     public function callMethod($class, $methodName)
     {
+        $this->increaseDepth();
         $reflectionClass  = new ReflectionClass($class);
         $reflectionMethod = $reflectionClass->getMethod($methodName);
 
         $args = $this->resolveArguments($reflectionMethod);
 
-        return $reflectionMethod->invokeArgs($class, $args);
+        $object = $reflectionMethod->invokeArgs($class, $args);
+        $this->invokePendingInjectFactories();
+        return $object;
     }
 
     /**
@@ -142,6 +157,7 @@ class Container
      */
     public function resolve($className)
     {
+        $this->increaseDepth();
         $reflectionClass = new ReflectionClass($className);
 
         $this->buildInstanceWrapperForClass($reflectionClass);
@@ -265,7 +281,7 @@ class Container
         }
 
         while ($pendingFactory = array_shift($instanceWrapper->injectionMethods)) {
-            $this->pendingInjectionMethods[] = [$instanceWrapper->instance, $pendingFactory];
+            $this->pendingInjectionMethods[$this->levelDepth][] = [$instanceWrapper->instance, $pendingFactory];
         }
 
         return $instanceWrapper->instance;
@@ -342,17 +358,18 @@ class Container
 
     private function resolveReflectionClass(ReflectionClass $reflectionClass)
     {
-        if (isset($this->resolvingClasses[$reflectionClass->getName()])) {
-            $classes = join(" -> ", array_keys($this->resolvingClasses)) . " -> " . $reflectionClass->getName();
+        $resolvingKey = $reflectionClass->getName() . "$this->levelDepth";
+        if (isset($this->resolvingClasses[$resolvingKey])) {
+            $classes = join(" -> ", array_keys($this->resolvingClasses)) . " -> " . $resolvingKey;
             throw new ContainerException("Circular dependency detected. $classes");
         }
-        $this->resolvingClasses[$reflectionClass->getName()] = 1;
+        $this->resolvingClasses[$resolvingKey] = 1;
 
         /** @var InstanceWrapper $instanceWrapper */
         $instanceWrapper = $this->instanceWrappers[$reflectionClass->getName()];
         $object          = $this->getInstanceFromWrapper($instanceWrapper);;
 
-        unset($this->resolvingClasses[$reflectionClass->getName()]);
+        unset($this->resolvingClasses[$resolvingKey]);
 
         return $object;
     }
@@ -414,24 +431,34 @@ class Container
         return $injectMethods;
     }
 
+
+    private function increaseDepth()
+    {
+        $this->levelDepth++;
+        $this->pendingInjectionMethods[$this->levelDepth] = [];
+
+    }
     /**
      * Will invoke the injection methods
      */
     private function invokePendingInjectFactories()
     {
+
         /** @var $injectMethod \ReflectionMethod */
         /** @var mixed $instance */
-        while ($instanceAndMethod = array_shift($this->pendingInjectionMethods)) {
+        while ($instanceAndMethod = array_shift($this->pendingInjectionMethods[$this->levelDepth])) {
             list($instance, $injectMethod) = $instanceAndMethod;
 
             $args = $this->resolveArguments($injectMethod);
             $injectMethod->invokeArgs($instance, $args);
         }
+
+        $this->levelDepth--;
     }
 
     /**
      * @param ReflectionClass $parentReflectClass
-     * @param                 $registerParents one the self::REGISTER_PARENTS constants
+     * @param string          $registerParents one the self::REGISTER_PARENTS constants
      * @return bool
      */
     private function shouldRegisterParent(\ReflectionClass $parentReflectClass, $registerParents)
