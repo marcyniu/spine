@@ -68,9 +68,9 @@ class Container
         $this->increaseDepth();
         $reflectionFunction = new \ReflectionFunction($callable);
         $args               = $this->resolveArguments($reflectionFunction);
-        $obj                = $reflectionFunction->invokeArgs($args);
         $this->invokePendingInjectFactories();
-        return $obj;
+        $result             = $reflectionFunction->invokeArgs($args);
+        return $result;
     }
 
     /**
@@ -87,9 +87,9 @@ class Container
 
         $args = $this->resolveArguments($reflectionMethod);
 
-        $object = $reflectionMethod->invokeArgs($class, $args);
         $this->invokePendingInjectFactories();
-        return $object;
+        $result = $reflectionMethod->invokeArgs($class, $args);
+        return $result;
     }
 
     /**
