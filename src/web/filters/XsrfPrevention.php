@@ -14,22 +14,31 @@ class XsrfPrevention extends Filter
     const PARAM_NAME = "XSRF-TOKEN";
 
     /**
-     * @var string
+     * @var Cookies
      */
-    protected $token;
+    private $cookies;
+
+    /**
+     * XsrfPrevention constructor.
+     * @param Cookies $cookies
+     */
+    public function injectCookies(Cookies $cookies)
+    {
+        $this->cookies = $cookies;
+    }
 
     /**
      * @return bool
      */
     public function execute()
     {
-        $this->loadTokenFromCookie();
+        $tokenValue = $this->loadTokenFromCookie();
 
         if ($this->request->type() === 'POST') {
-            return $this->hasMatchingParamToken();
+            return $this->matchingReferrer() && $this->hasMatchingParamToken($tokenValue);
         }
         if ($this->request->type() === 'GET') {
-            $this->createCookieIfNeeded();
+            $this->createCookieIfNeeded($tokenValue);
             return true;
         }
 
@@ -38,15 +47,14 @@ class XsrfPrevention extends Filter
 
     protected function loadTokenFromCookie()
     {
-        $cookieValue = $this->request->getCookie(self::COOKIE_NAME);
-        $this->token = $cookieValue;
+        return $this->cookies->get(self::COOKIE_NAME);
+
     }
 
-    protected function hasMatchingParamToken()
+    protected function hasMatchingParamToken($tokenValue)
     {
-        $cookieValue = $this->request->getCookie(self::COOKIE_NAME);
-        $paramName   = $this->request->requiredParam(self::PARAM_NAME);
-        if ($cookieValue == $paramName) {
+        $paramName = $this->request->requiredParam(self::PARAM_NAME);
+        if ($tokenValue == $paramName) {
             return true;
         }
 
@@ -56,13 +64,11 @@ class XsrfPrevention extends Filter
 
     }
 
-    protected function createCookieIfNeeded()
+    protected function createCookieIfNeeded($tokenValue)
     {
-        $cookieValue = $this->request->getCookie(self::COOKIE_NAME);
-
-        if (is_null($cookieValue)) {
+        if (is_null($tokenValue)) {
             $this->createToken();
-            $this->response->setCookie(self::COOKIE_NAME, $this->token);
+            $this->cookies->set(self::COOKIE_NAME, $this->token);
         }
 
     }
@@ -75,5 +81,18 @@ class XsrfPrevention extends Filter
     public function getToken()
     {
         return $this->token;
+    }
+
+    private function matchingReferrer()
+    {
+        $referrer = $this->request->referrer();
+        $pattern = '|^https?://' . $this->request->host() . '|';
+
+        if (preg_match($pattern, $referrer)) {
+            return true;
+        } else {
+            throw new HttpBadRequestException("Invalid referrer '$referrer'");
+        }
+
     }
 }
