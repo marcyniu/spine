@@ -9,6 +9,7 @@ namespace Spine\Web;
 use ErrorException;
 use Exception;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * @codeCoverageIgnore
@@ -76,7 +77,7 @@ class ErrorHandler
      *
      * @return void
      */
-    public function handleException(Exception $exception)
+    public function handleException(Throwable $exception)
     {
         restore_error_handler();
         restore_exception_handler();
@@ -232,7 +233,7 @@ class ErrorHandler
      *
      * @return void
      */
-    public static function printException(Exception $exception)
+    public static function printException(Throwable $exception)
     {
         while (null !== $exception) {
             if (isset($exception->xdebug_message) === true) {
