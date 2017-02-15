@@ -77,7 +77,6 @@ class XsrfPrevention extends Filter
             return true;
         }
 
-
         $this->response->sendBody('XSRF fail.');
 
         return false;
@@ -90,7 +89,6 @@ class XsrfPrevention extends Filter
             $this->createToken();
             $this->cookies->set(self::COOKIE_NAME, $this->token);
         }
-
     }
 
     protected function createToken()
