@@ -27,6 +27,8 @@ class ErrorHandler
      */
     private $logger;
 
+    private $errorTemplateDirectory = "";
+
     /**
      * ErrorHandler constructor.
      * @param LoggerInterface|null $logger
@@ -34,7 +36,11 @@ class ErrorHandler
     public function __construct(LoggerInterface $logger = null)
     {
         $this->logger = $logger;
+
+        $this->errorTemplateDirectory = $_SERVER['DOCUMENT_ROOT'];
     }
+
+
     /**
      * Registers the error itself as the an error handler.
      *
@@ -42,9 +48,9 @@ class ErrorHandler
      */
     public function register()
     {
-        set_error_handler(array($this, "handleError"));
-        set_exception_handler(array($this, "handleException"));
-        register_shutdown_function(array($this, "shutdownFunction"));
+        set_error_handler([$this, "handleError"]);
+        set_exception_handler([$this, "handleException"]);
+        register_shutdown_function([$this, "shutdownFunction"]);
     }
 
     /**
@@ -79,6 +85,7 @@ class ErrorHandler
      */
     public function handleException(Throwable $exception)
     {
+
         restore_error_handler();
         restore_exception_handler();
 
@@ -102,7 +109,11 @@ class ErrorHandler
         if ($this->iniGetDisplayErrors() === true) {
             self::printException($exception);
         } else {
-            $this->displayPretty();
+            if ($this->isJsonRequest()) {
+                $this->displayPrettyJsonError();
+            } else {
+                $this->displayPretty();
+            }
         }
 
         $this->logException($exception);
@@ -148,18 +159,19 @@ class ErrorHandler
     /**
      * Displays a pretty error.
      *
-     * Checks for a file in DOCUMENT ROOT called {ErrorCode}.html, and will display
-     * it
-     *
+     * Checks for a file in DOCUMENT ROOT called {ErrorCode}.[php|html], and will include it
      * @return void
-     * @SuppressWarnings(PHPMD.CamelCaseVariableName)
      */
     public function displayPretty()
     {
         if ($this->prettySent === false) {
-            $errorDocumentFilename = sprintf('%s/%s.html', $_SERVER["DOCUMENT_ROOT"], $this->httpResponseCode);
-            if (is_file($errorDocumentFilename) === true) {
-                include $errorDocumentFilename;
+            $errorDocumentBasename = sprintf('%s/%s', $this->errorTemplateDirectory, $this->httpResponseCode);
+
+
+            if (is_file("$errorDocumentBasename.html") === true) {
+                include "$errorDocumentBasename.html";
+            } elseif (is_file("$errorDocumentBasename.php") === true) {
+                include "$errorDocumentBasename.php";
             } else {
                 printf(
                     '<h1>%s</h1><p>%s</p>',
@@ -184,17 +196,20 @@ class ErrorHandler
 
     /**
      *
-     * @param Exception $exception
+     * @param Throwable $exception
      *
      * @return void
      */
-    protected function logException(Exception $exception)
+    protected function logException(Throwable $exception)
     {
-        while (null !== $exception) {
+        if ($this->logger) {
 
-            $uniqueLogId = uniqid();
 
-            $msg = sprintf(
+            while (null !== $exception) {
+
+                $uniqueLogId = uniqid();
+
+                $msg = sprintf(
                     "Unhandled Exception %s %s %s (%s)",
                     get_class($exception),
                     $exception->getMessage(),
@@ -202,29 +217,31 @@ class ErrorHandler
                     $exception->getLine()
                 );
 
-            $serverKeys = array_flip(['REMOTE_ADDR', 'SERVER_NAME', 'REQUEST_URI', 'REQUEST_METHOD', 'HTTP_USER_AGENT', 'HTTP_COOKIE']);
+                $serverKeys = array_flip(['REMOTE_ADDR', 'SERVER_NAME', 'REQUEST_URI', 'REQUEST_METHOD', 'HTTP_USER_AGENT', 'HTTP_COOKIE']);
 
-            $stackTrace = [];
-            foreach ($exception->getTrace() as $key => $trace) {
-                $class = '';
-                $file  = '';
+                $stackTrace = [];
+                foreach ($exception->getTrace() as $key => $trace) {
+                    $class = '';
+                    $file  = '';
 
-                if (empty($trace['class']) !== true) {
-                    $class = $trace['class'] . $trace['type'];
+                    if (empty($trace['class']) !== true) {
+                        $class = $trace['class'] . $trace['type'];
+                    }
+
+                    if (empty($trace['file']) !== true) {
+                        $file = sprintf('%s (%s)', $trace['file'], $trace['line']);
+                    }
+
+                    $stackTrace[] = sprintf("$uniqueLogId:%s %s %s %s", $key, $class, $trace['function'], $file);
                 }
 
-                if (empty($trace['file']) !== true) {
-                    $file = sprintf('%s (%s)', $trace['file'], $trace['line']);
-                }
 
-                $stackTrace[] = sprintf("$uniqueLogId:%s %s %s %s", $key, $class, $trace['function'], $file);
+                $this->logger->error($msg, ['TRACE' => $stackTrace, '_GET' => $_GET, '_POST' => $_POST, '_SERVER' => array_intersect_key($_SERVER, $serverKeys)]);
+
+                $exception = $exception->getPrevious();
             }
-
-            $this->logger->error($msg, ['TRACE'=>$stackTrace, '_GET' => $_GET, '_POST' => $_POST, '_SERVER' => array_intersect_key($_SERVER, $serverKeys)]);
-
-            $exception = $exception->getPrevious();
+            //end while
         }
-        //end while
     }
 
     /**
@@ -235,6 +252,7 @@ class ErrorHandler
      */
     public static function printException(Throwable $exception)
     {
+
         while (null !== $exception) {
             if (isset($exception->xdebug_message) === true) {
                 /** @noinspection PhpUndefinedFieldInspection */
@@ -269,6 +287,37 @@ class ErrorHandler
             $exception = $exception->getPrevious();
         }
         //end while
+    }
+
+    /**
+     * @param string $errorTemplateDirectory
+     */
+    public function setErrorTemplateDirectory(string $errorTemplateDirectory)
+    {
+        if (!is_dir($errorTemplateDirectory)) {
+            throw new \InvalidArgumentException("Could not find directory '$errorTemplateDirectory'");
+        }
+        $this->errorTemplateDirectory = $errorTemplateDirectory;
+    }
+
+    private function isJsonRequest()
+    {
+        if (isset($_SERVER['HTTP_ACCEPT']) && stristr($_SERVER['HTTP_ACCEPT'], 'application/json')) {
+            return true;
+        }
+        return false;
+    }
+
+    private function displayPrettyJsonError()
+    {
+        if (headers_sent() === false) {
+            header("Content-Type: application/json", true);
+        }
+        echo json_encode([
+            "code"    => $this->httpResponseCode,
+            "message" => $this->httpResponseMessage,
+        ]);
+
     }
 
 }
