@@ -8,6 +8,7 @@ namespace Spine\Web;
 
 use ErrorException;
 use Exception;
+use function GuzzleHttp\json_encode;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -55,8 +56,8 @@ class ErrorHandler
 
     /**
      * @param integer $code
-     * @param string  $message
-     * @param string  $file
+     * @param string $message
+     * @param string $file
      * @param integer $line
      *
      * @return void
@@ -107,7 +108,13 @@ class ErrorHandler
         $this->headerSet = true;
 
         if ($this->iniGetDisplayErrors() === true) {
-            self::printException($exception);
+
+            if ($this->isJsonRequest()) {
+                $this->displayDeveloperJsonError($exception);
+            } else {
+                self::printException($exception);
+            }
+
         } else {
             if ($this->isJsonRequest()) {
                 $this->displayPrettyJsonError();
@@ -317,6 +324,50 @@ class ErrorHandler
             "code"    => $this->httpResponseCode,
             "message" => $this->httpResponseMessage,
         ]);
+
+    }
+
+    private function displayDeveloperJsonError(Throwable $exception)
+    {
+        if (headers_sent() === false) {
+            header("Content-Type: application/json", true);
+        }
+        $errors = [];
+
+        while (null !== $exception) {
+            $error = [];
+            $error[get_class($exception)] = sprintf("%s on line %s ",  $exception->getFile() ,  $exception->getLine());
+            $error['msg'] = $exception->getMessage();
+
+            $traces = [];
+            foreach ($exception->getTrace() as $key => $trace) {
+                $class = "";
+                $file  = "";
+                $function = "";
+                if (empty($trace['class']) === false) {
+                    $class = $trace['class'] . $trace['type'];
+                }
+
+                if (empty($trace['file']) === false) {
+                    $file = $trace['file'] . ":" . $trace['line'];
+                }
+
+                if (empty($trace['function']) === false) {
+                    $function = $trace['function'] . "()";
+                }
+
+
+                $trace = trim("$class$function $file");
+
+                $traces[$key] = $trace;
+            }
+            $error['trace'] = $traces;
+
+            $errors[] = $error;
+            $exception = $exception->getPrevious();
+        }
+
+        echo json_encode($errors);
 
     }
 
