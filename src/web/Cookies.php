@@ -30,16 +30,20 @@ class Cookies
     /**
      * @param string $name
      * @param string $value
-     * @param null   $expire
+     * @param int $expire
+     * @param string $path
+     * @param string $domain
+     * @param bool $secure
+     * @param bool $httponly
      */
-    public function set($name, $value, $expire = null)
+    public function set(string $name, string $value = null, int $expire = null, string $path = null, string $domain = null, bool $secure = null, bool $httponly = null)
     {
-        setcookie($name, $value, $expire, "/");
+        setcookie($name, $value, $expire, $path, $domain, $secure, $httponly);
     }
 
-    public function delete($name)
+    public function delete($name, $path=null)
     {
         unset($_COOKIE[$name]);
-        $this->set($name, null, -1);
+        $this->set($name, null, -1, $path);
     }
 } 
