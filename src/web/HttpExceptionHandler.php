@@ -12,11 +12,13 @@ use Throwable;
 /**
  * @codeCoverageIgnore
  */
-class HttpExceptionHandler
+class HttpExceptionHandler extends HttpExceptionPrinter
 {
-
-    protected $httpResponseCode = 500;
-    private $httpResponseMessage = "Internal Server Error";
+    public function __construct($dir)
+    {
+        $this->jsonPrinter = new JsonExceptionPrinter();
+        $this->htmlPrinter = new HtmlExceptionPrinter($dir);
+    }
 
     /**
      * Registers the error itself as the an error handler.
@@ -28,26 +30,40 @@ class HttpExceptionHandler
         set_exception_handler([$this, "handleException"]);
     }
 
-    public function handleException(Throwable $exception)
+    public function handleException(Throwable $throwable)
     {
+        $this->sendHeaders($throwable);
+        $this->sendBody($throwable);
 
-        if (is_a($exception, 'Spine\Web\HttpException') === true) {
-            $this->httpResponseCode    = $exception->getCode();
-            $this->httpResponseMessage = $exception->getMessage();
+        // re throw the exception down the chain
+        restore_exception_handler();
+        throw new Exception("Uncaught exception", 0, $throwable);
+
+    }
+
+
+    private function sendHeaders(Throwable $throwable)
+    {
+        $code = $throwable->getCode();
+        if (!isset($this->validErrors[$code])) {
+            $code = "500";
         }
+        $message = $this->validErrors[$code];
 
         if (headers_sent() === false) {
             header(
-                sprintf('HTTP/1.1 %s %s', $this->httpResponseCode, $this->httpResponseMessage),
+                sprintf('HTTP/1.1 %s %s', $code, $message),
                 true,
-                $this->httpResponseCode
+                $code
             );
         }
 
+    }
 
-        restore_exception_handler();
-        throw new Exception("Uncaught exception", 0, $exception);
-
+    private function sendBody(Throwable $throwable)
+    {
+        $this->htmlPrinter->printThrowable($throwable);
+        $this->jsonPrinter->printThrowable($throwable);
     }
 
 }
