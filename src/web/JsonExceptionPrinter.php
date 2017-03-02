@@ -163,9 +163,15 @@ class JsonExceptionPrinter extends HttpExceptionPrinter
 
     private function displaySafeJsonError(Throwable $throwable)
     {
+        $code = $throwable->getCode();
+        if (!isset($this->validErrors[$code])) {
+            $code = "500";
+        }
+        $message = $this->validErrors[$code];
+
         echo json_encode([
-            "code"    => $throwable->getCode(),
-            "message" => $throwable->getMessage(),
+            "code"    => $code,
+            "message" => $message,
         ]);
     }
 
