@@ -181,6 +181,13 @@ class Response
         $this->sendHeader('HTTP/1.1 405 Method Not Allowed', true, 405);
     }
 
+
+    public function sendConflictHeader()
+    {
+        $this->sendHeader('HTTP/1.1 409 Conflict', true, 409);
+    }
+
+
     public function sendHeaderContentTypeJson()
     {
         $this->sendHeader("Content-Type: application/json", true);
