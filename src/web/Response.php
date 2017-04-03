@@ -124,6 +124,18 @@ class Response
         $this->sendHeader('HTTP/1.1 200 OK', false, 200);
     }
 
+
+    /**
+     *
+     * @return void
+     */
+    public function sendAccepted()
+    {
+        $this->sendHeader('HTTP/1.1 202 OK', false, 202);
+    }
+
+
+
     /**
      *
      * @return void
