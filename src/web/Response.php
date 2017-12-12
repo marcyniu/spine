@@ -17,7 +17,7 @@ class Response
     public function redirect($url)
     {
         $this->sendHeader('Location: ' . $url, true, 302);
-//		exit;
+        //		exit;
     }
 
     /**
@@ -30,7 +30,7 @@ class Response
     public function redirectPermanently($url)
     {
         $this->sendHeader('Location: ' . $url, true, 301);
-//		exit;
+        //		exit;
     }
 
     /**

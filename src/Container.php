@@ -272,8 +272,9 @@ class Container
             }
 
             if (!is_object($instance)) {
-                $error = sprintf("%s (%u:%u)", $reflectionFunction->getFileName(), $reflectionFunction->getStartLine(),
-                    $reflectionFunction->getEndLine());
+                $error = sprintf("%s (%u:%u) %s", $reflectionFunction->getFileName(), $reflectionFunction->getStartLine(),
+                    $reflectionFunction->getEndLine(), $instanceWrapper->reflectionClass ? $instanceWrapper->reflectionClass->name: '');
+
                 throw new ContainerException("InstanceWrapper did not return an object. $error");
             }
             $instanceWrapper->instance = $instance;
@@ -479,7 +480,7 @@ class Container
                 break;
 
             default:
-                throw new \RuntimeException("Unknow value of '$registerParents' for \$registerParents");
+                throw new \RuntimeException("Unknown value of '$registerParents' for \$registerParents");
                 break;
 
         }

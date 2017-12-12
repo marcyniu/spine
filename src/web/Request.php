@@ -86,7 +86,7 @@ class Request
     }
 
     /**
-     * @return string | null
+     * @return array | null
      */
     public function pathParams()
     {

@@ -8,9 +8,7 @@ namespace Spine\Web;
 
 use ErrorException;
 use Exception;
-use function GuzzleHttp\json_encode;
 use Psr\Log\LoggerInterface;
-use Throwable;
 
 /**
  * @codeCoverageIgnore
