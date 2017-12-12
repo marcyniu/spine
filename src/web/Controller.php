@@ -35,10 +35,18 @@ abstract class Controller extends BaseController implements ControllerInterface
             throw new \RuntimeException("\$this->request is not set. Check if this controller's (" . get_class($this) . ") constructor was overridden.");
         }
 
-        // All HTTP Request Types map to a method
-        $methodName = strtolower($this->request->type());
+        $methodName = $this->getMethodName();
 
         $this->callMethod($methodName);
+    }
+
+
+    protected function getMethodName() {
+        /**
+         * Use HTTP request type for the method to call
+         */
+        return strtolower($this->request->type());
+
     }
 
     /**

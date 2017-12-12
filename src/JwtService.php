@@ -2,7 +2,6 @@
 
 namespace Spine;
 
-use JWT;
 
 /**
  * JWT Token
