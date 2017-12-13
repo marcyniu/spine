@@ -148,7 +148,7 @@ abstract class Routes
      *
      * @return string
      */
-    private static function compileString($value)
+    public static function compileString($value)
     {
         $value = static::compileOptional(static::compileParameters($value));
 

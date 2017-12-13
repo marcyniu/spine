@@ -13,7 +13,6 @@ namespace Spine\Web;
 abstract class RestController extends Controller
 {
     /**
-     *
      * @throws HttpMethodNotAllowedException
      * @return void
      */
@@ -24,21 +23,21 @@ abstract class RestController extends Controller
             throw new \RuntimeException("\$this->request is not set. Check if this controller's (" . get_class($this) . ") constructor was overridden.");
         }
 
-        $methodName = $this->getMethodName($this->request->type(), $this->request->resourceIdGiven());
+        $methodName = $this->getMethodName();
 
         $this->callMethod($methodName);
 
     }
 
     /**
-     * @param $type
-     * @param $idIsGiven
-     *
      * @return string
      * @throws HttpMethodNotAllowedException
      */
-    private function getMethodName($type, $idIsGiven)
+    protected function getMethodName()
     {
+
+        $type = $this->request->type();
+        $idIsGiven = $this->request->resourceIdGiven();
 
         $methodName = '';
         switch ($type) {

@@ -20,10 +20,17 @@ trait FakeRequestTrait
     public $fakeType = 'GET';
 
     public $fakeQueryString = '';
+    public $fakeIp = '127.0.0.1';
 
     public function getPort()
     {
         return 80;
+    }
+
+
+    public function userIp()
+    {
+        return $this->fakeIp;
     }
 
     public function host()
