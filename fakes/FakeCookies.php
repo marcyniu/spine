@@ -26,11 +26,15 @@ class FakeCookies extends Cookies
     }
 
     /**
-     * @param string $name
-     * @param string $value
-     * @param null   $expire
+     * @param string      $name
+     * @param string|null $value
+     * @param int|null    $expire
+     * @param string|null $path
+     * @param string|null $domain
+     * @param bool|null   $secure
+     * @param bool|null   $httponly
      */
-    public function set($name, $value, $expire = null)
+    public function set(string $name, string $value = null, int $expire = null, string $path = null, string $domain = null, bool $secure = null, bool $httponly = null)
     {
         $this->store[$name] = $value;
     }
