@@ -7,14 +7,12 @@
 namespace Spine;
 
 use Exception;
-use Throwable;
 
 /**
  * Uses composition to call several error handlers.
  */
 class ErrorHandlerCollection
 {
-
     private $errorHandlers = [];
     private $exceptionHandlers = [];
 
@@ -45,10 +43,7 @@ class ErrorHandlerCollection
             // there exists another exception handler ..
             trigger_error("Another Exception Handler was detected.", E_USER_ERROR);
         }
-
-
     }
-
 
     /**
      * @param int    $errno
@@ -81,7 +76,6 @@ class ErrorHandlerCollection
             $exceptionHandler = current($this->exceptionHandlers);
             call_user_func($exceptionHandler, $exception);
         }
-
     }
 
     public function addErrorHandler($callable)
@@ -93,6 +87,4 @@ class ErrorHandlerCollection
     {
         $this->exceptionHandlers[] = $callable;
     }
-
-
 }
