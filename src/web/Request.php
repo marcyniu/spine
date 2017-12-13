@@ -68,7 +68,7 @@ class Request
     /**
      * @param $key
      *
-     * @return string | null
+     * @return string | array | null
      */
     public function param($key)
     {

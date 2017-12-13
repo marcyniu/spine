@@ -37,7 +37,7 @@ class Response
      * Wraps php function header().
      *
      * @param string  $string
-     * @param string  $replace
+     * @param bool    $replace
      * @param integer $httpResponseCode
      *
      * @return void
