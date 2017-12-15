@@ -1,7 +1,7 @@
 <?php
 namespace Spine;
 
-use PHPUnit_Framework_TestCase;
+use \PHPUnit\Framework\TestCase;
 
 class Container2Test_Test1
 {
@@ -74,7 +74,7 @@ class Container2Test_ScalarInConstructor
     }
 }
 
-class Container2Test extends PHPUnit_Framework_TestCase
+class Container2Test extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var Container
@@ -119,7 +119,7 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
     public function testBadFactory()
     {
-        $this->setExpectedException("Spine\\ContainerException");
+        $this->expectException("Spine\\ContainerException");
 
         $factory = function () {
             // doesn' return anything
@@ -239,7 +239,7 @@ class Container2Test extends PHPUnit_Framework_TestCase
 
     public function testConstructorWithScalar()
     {
-        $this->setExpectedException("Spine\\ContainerException");
+        $this->expectException("Spine\\ContainerException");
         $this->container->resolve("Spine\\Container2Test_ScalarInConstructor");
 
     }
@@ -259,6 +259,9 @@ class Container2Test extends PHPUnit_Framework_TestCase
         $this->container->registerTypeFactory("Spine\\Container2Test_Test1", $factory1);
         $this->container->registerTypeFactory("Spine\\Container2Test_ScalarInConstructor", $factory2);
 
+
+        $object = $this->container->resolve('Spine\\Container2Test_Test1');
+        $this->assertInstanceOf('Spine\\Container2Test_Test1', $object);
     }
 
 

@@ -16,6 +16,9 @@ use Throwable;
 class HttpHeadersErrorHandler implements ExceptionHandlerInterface
 {
 
+    /**
+     * @param \Exception|Throwable|HttpException $exception
+     */
     public function handleException($exception)
     {
         while (null !== $exception) {

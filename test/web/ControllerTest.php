@@ -17,21 +17,24 @@ class ControllerTest_SampleService
 class ControllerTest_Controller extends Controller
 {
 
+    public $called = false;
+
     public function get(ControllerTest_SampleService $sampleService)
     {
 
+        $this->called = true;
     }
 }
 
 class ControllerTest extends ControllerTestCase
 {
 
-    public function testDispatch() {
+    public function  testDispatch() {
         $controller = new ControllerTest_Controller($this->request, $this->response);
         $controller->injectContainer(new Container());
         $controller->dispatch();
 
-
+        $this->assertTrue($controller->called);
     }
 
 }

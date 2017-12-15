@@ -45,20 +45,20 @@ class MessageHasher
     /**
      * Gets a salty random number.
      *
-     * @return binary
+     * @return string
      */
-    private function getSalt()
+    private function getSalt() :string
     {
         return openssl_random_pseudo_bytes($this->saltBytes);
     }
 
     /**
-     * @param binary $salt
-     * @param binary $string
+     * @param string $salt
+     * @param string $string
      *
-     * @return binary
+     * @return string
      */
-    private function _hash($salt, $string)
+    private function _hash(string $salt, string $string) :string
     {
         return hash_hmac("sha512", $salt . $string, $this->key, true);
     }

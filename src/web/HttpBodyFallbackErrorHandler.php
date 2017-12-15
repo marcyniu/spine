@@ -47,7 +47,7 @@ class HttpBodyFallbackErrorHandler
         if (is_file($errorDocumentFilename) === true) {
             echo file_get_contents($errorDocumentFilename);
         } else {
-            printf('<h1>%s</h1><p>%s</p>', htmlentities($code),
+            printf('<h1>%s</h1><p>%s</p>', htmlentities(strval($code)),
                 htmlentities($e->getMessage()));
         }
 

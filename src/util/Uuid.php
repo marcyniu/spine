@@ -9,11 +9,11 @@ namespace Spine;
  */
 class UUID
 {
-
     /**
      * @see    http://stackoverflow.com/questions/2040240/php-function-to-generate-v4-uuid
      * @author http://stackoverflow.com/users/1338292/jack
      * @return string
+     * @throws \Exception
      */
     public static function v4()
     {

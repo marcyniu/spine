@@ -9,6 +9,7 @@ class Route
 {
 
     public $controllerClassName;
+    protected $request;
 
     /**
      * @param Request $request

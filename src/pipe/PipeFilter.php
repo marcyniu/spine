@@ -9,11 +9,11 @@ namespace Spine;
  * @since      2014-02-05
  */
 
-class Pipe
+class Pipe implements Filter
 {
     /**
      *
-     * @var Array $filters to hold the pipe's filters
+     * @var array $filters to hold the pipe's filters
      */
     private $filters = array();
 
@@ -34,7 +34,7 @@ class Pipe
     public function execute()
     {
         $result = false;
-        /** @var $filter PipeFilter */
+        /** @var Filter $filter  */
         foreach ($this->filters as $filter) {
             $result = $filter->execute();
             if ($result === false) {

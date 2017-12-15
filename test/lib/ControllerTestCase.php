@@ -2,9 +2,9 @@
 
 namespace Spine\Web;
 
-use PHPUnit_Framework_TestCase;
+use \PHPUnit\Framework\TestCase;
 
-class ControllerTestCase extends PHPUnit_Framework_TestCase
+class ControllerTestCase extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var FakeRequest

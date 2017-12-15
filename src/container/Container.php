@@ -2,6 +2,7 @@
 
 namespace Spine;
 
+use Closure;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
@@ -67,14 +68,14 @@ class Container
     {
         $this->increaseDepth();
         $reflectionFunction = new \ReflectionFunction($callable);
-        $args               = $this->resolveArguments($reflectionFunction);
+        $args = $this->resolveArguments($reflectionFunction);
         $this->invokePendingInjectFactories();
-        $result             = $reflectionFunction->invokeArgs($args);
+        $result = $reflectionFunction->invokeArgs($args);
         return $result;
     }
 
     /**
-     * @param mixed  $class Either a class name, or an object.
+     * @param mixed $class Either a class name, or an object.
      * @param string $methodName
      *
      * @return mixed
@@ -82,7 +83,7 @@ class Container
     public function callMethod($class, $methodName)
     {
         $this->increaseDepth();
-        $reflectionClass  = new ReflectionClass($class);
+        $reflectionClass = new ReflectionClass($class);
         $reflectionMethod = $reflectionClass->getMethod($methodName);
 
         $args = $this->resolveArguments($reflectionMethod);
@@ -113,7 +114,7 @@ class Container
     /**
      * @param string $className class/interface Name
      * @param object $object
-     * @param bool   $registerParents
+     * @param bool $registerParents
      *
      * @return $this
      */
@@ -128,19 +129,14 @@ class Container
 
 
     /**
-     * @param string   $className
-     * @param callable $callableFactory
-     * @param bool     $registerParents Will also register the factory for the parent class of $type
+     * @param string $className
+     * @param Closure $callableFactory
+     * @param bool $registerParents Will also register the factory for the parent class of $type
      *
      * @return $this
      */
-    public function registerTypeFactory($className, $callableFactory, $registerParents = false)
+    public function registerTypeFactory($className, $callableFactory, bool $registerParents = false)
     {
-        if (!is_bool($registerParents)) {
-            throw new \InvalidArgumentException(sprintf('$registerParents must be bool, but got %s value: %s',
-                gettype($registerParents), $registerParents));
-        }
-
         $reflectionClass = new ReflectionClass($className);
         $this->createAndRegisterInstanceWrapper(null, $reflectionClass,
             $registerParents ? self::PARENTS_REGISTER_ALWAYS : self::PARENTS_REGISTER_NEVER,
@@ -169,16 +165,16 @@ class Container
 
 
     /**
-     * @param object                     $object
-     * @param ReflectionClass            $reflectionClass class/interface the object extends/implements
-     * @param string                     $registerParents one the self::REGISTER_PARENTS constants
-     * @param ReflectionFunctionAbstract $factoryReflectionFunction
+     * @param object $object
+     * @param ReflectionClass $reflectionClass class/interface the object extends/implements
+     * @param string $registerParents one the self::REGISTER_PARENTS constants
+     * @param ReflectionFunctionAbstract|null $factoryReflectionFunction
      * @return InstanceWrapper $instanceWrapper
      */
     private function createAndRegisterInstanceWrapper($object, ReflectionClass $reflectionClass, $registerParents, ReflectionFunctionAbstract $factoryReflectionFunction = null)
     {
-        $instanceWrapper                  = new InstanceWrapper();
-        $instanceWrapper->instance        = $object;
+        $instanceWrapper = new InstanceWrapper();
+        $instanceWrapper->instance = $object;
         $instanceWrapper->reflectionClass = $reflectionClass;
 
         if ($factoryReflectionFunction) {
@@ -251,7 +247,7 @@ class Container
 
         if (!is_object($instanceWrapper->instance)) {
 
-            $reflectionFunction                      = $instanceWrapper->factoryMethod;
+            $reflectionFunction = $instanceWrapper->factoryMethod;
             $instanceWrapper->factoryMethodArguments = $this->buildArgumentsInstanceWrappersForFunction($instanceWrapper->factoryMethod);
 
             $args = [];
@@ -273,7 +269,7 @@ class Container
 
             if (!is_object($instance)) {
                 $error = sprintf("%s (%u:%u) %s", $reflectionFunction->getFileName(), $reflectionFunction->getStartLine(),
-                    $reflectionFunction->getEndLine(), $instanceWrapper->reflectionClass ? $instanceWrapper->reflectionClass->name: '');
+                    $reflectionFunction->getEndLine(), $instanceWrapper->reflectionClass ? $instanceWrapper->reflectionClass->name : '');
 
                 throw new ContainerException("InstanceWrapper did not return an object. $error");
             }
@@ -301,14 +297,18 @@ class Container
         $signature = array();
         /** @var $reflectionParameter \ReflectionParameter */
         foreach ($params as $reflectionParameter) {
-
+            $reflectionParameter->getDeclaringFunction();
             try {
                 $reflectionClass = $reflectionParameter->getClass();
             } catch (ReflectionException $e) {
+
+                /** @var \ReflectionMethod $reflectionMethodErr */
+                $reflectionMethodErr = $reflectionParameter->getDeclaringFunction();
+
                 /** @noinspection PhpUndefinedFieldInspection */
                 $msg = sprintf("Method '%s:%s()' has unknown type hint for '%s' parameter, found in %s on line %u",
-                    $reflectionParameter->getDeclaringFunction()->class,
-                    $reflectionParameter->getDeclaringFunction()->name, $reflectionParameter->name,
+                    $reflectionMethodErr->class,
+                    $reflectionMethodErr->name, $reflectionParameter->name,
                     $reflectionMethod->getFileName(), $reflectionMethod->getEndLine());
                 throw new ContainerException($msg, 999, $e);
             }
@@ -350,7 +350,7 @@ class Container
                 throw new ContainerException("No factory wrappers for '$className'");
             }
             $factoryContainer = $this->instanceWrappers[$className];
-            $args[]           = $this->getInstanceFromWrapper($factoryContainer);
+            $args[] = $this->getInstanceFromWrapper($factoryContainer);
         }
 
         return $args;
@@ -368,7 +368,7 @@ class Container
 
         /** @var InstanceWrapper $instanceWrapper */
         $instanceWrapper = $this->instanceWrappers[$reflectionClass->getName()];
-        $object          = $this->getInstanceFromWrapper($instanceWrapper);;
+        $object = $this->getInstanceFromWrapper($instanceWrapper);;
 
         unset($this->resolvingClasses[$resolvingKey]);
 
@@ -378,7 +378,7 @@ class Container
     /**
      * @param ReflectionClass $reflectionClass
      * @param InstanceWrapper $instanceWrapper
-     * @param string          $registerParents one the self::REGISTER_PARENTS constants
+     * @param string $registerParents one the self::REGISTER_PARENTS constants
      */
     private function registerParentClasses(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper, $registerParents)
     {
@@ -395,7 +395,7 @@ class Container
     /**
      * @param ReflectionClass $reflectionClass
      * @param InstanceWrapper $instanceWrapper
-     * @param string          $registerParents one the self::REGISTER_PARENTS constants
+     * @param string $registerParents one the self::REGISTER_PARENTS constants
      */
     private function registerInterfaces(ReflectionClass $reflectionClass, InstanceWrapper $instanceWrapper, $registerParents)
     {
@@ -411,7 +411,7 @@ class Container
 
     private function registerInstanceWrapperForClass(InstanceWrapper $instanceWrapper, ReflectionClass $reflectionClass)
     {
-        $className                          = $reflectionClass->getName();
+        $className = $reflectionClass->getName();
         $this->instanceWrappers[$className] = $instanceWrapper;
     }
 
@@ -439,6 +439,7 @@ class Container
         $this->pendingInjectionMethods[$this->levelDepth] = [];
 
     }
+
     /**
      * Will invoke the injection methods
      */
@@ -459,7 +460,7 @@ class Container
 
     /**
      * @param ReflectionClass $parentReflectClass
-     * @param string          $registerParents one the self::REGISTER_PARENTS constants
+     * @param string $registerParents one the self::REGISTER_PARENTS constants
      * @return bool
      */
     private function shouldRegisterParent(\ReflectionClass $parentReflectClass, $registerParents)
@@ -509,7 +510,7 @@ class InstanceWrapper
     public $factoryMethodArguments = [];
 
     /**
-     * @var [<Callable>]
+     * @var array <Callable>
      */
     public $injectionMethods = [];
 

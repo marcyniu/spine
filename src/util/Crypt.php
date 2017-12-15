@@ -22,22 +22,20 @@ class Crypt
     public function encrypt($message)
     {
         $iv = openssl_random_pseudo_bytes($this->ivSize);
-        return base64_encode($iv . openssl_encrypt($message, $this->cipher, $this->key, true, $iv));
-
+        return base64_encode($iv . openssl_encrypt($message, $this->cipher, $this->key, 0, $iv));
     }
 
     /**
-     *
      * @param string $encrypted
      *
      * @return string
      */
     public function decrypt($encrypted)
     {
-        $encrypted        = base64_decode($encrypted);
-        $iv               = substr($encrypted, 0, $this->ivSize);
+        $encrypted = base64_decode($encrypted);
+        $iv = substr($encrypted, 0, $this->ivSize);
         $encryptedMessage = substr($encrypted, $this->ivSize);
-        return openssl_decrypt($encryptedMessage, $this->cipher, $this->key, true, $iv);
+        return openssl_decrypt($encryptedMessage, $this->cipher, $this->key, 0, $iv);
     }
 
 }
