@@ -11,6 +11,4 @@ use RuntimeException;
  */
 class StrictException extends RuntimeException
 {
-
 }
-
