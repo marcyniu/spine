@@ -14,6 +14,10 @@ use Throwable;
  */
 class HttpExceptionHandler extends HttpExceptionPrinter
 {
+    private $jsonPrinter;
+    private $htmlPrinter;
+
+
     public function __construct($dir)
     {
         $this->jsonPrinter = new JsonExceptionPrinter();

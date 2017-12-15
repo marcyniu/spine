@@ -1,7 +1,7 @@
 <?php
 namespace Spine;
 
-use PHPUnit_Framework_TestCase;
+use \PHPUnit\Framework\TestCase;
 
 class ContainerInjectWithInjectTest_ExampleService1
 {
@@ -50,7 +50,7 @@ class ContainerInjectWithInjectTest_ExampleService3
  *
  * @package Spine
  */
-class ContainerInjectWithInjectTest extends PHPUnit_Framework_TestCase
+class ContainerInjectWithInjectTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var Container

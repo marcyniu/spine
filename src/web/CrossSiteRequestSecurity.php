@@ -2,6 +2,8 @@
 
 namespace Spine\Web;
 
+use Spine\UUID;
+
 /**
  * Class CrossSiteRequestSecurity
  *
@@ -9,12 +11,11 @@ namespace Spine\Web;
  */
 class CrossSiteRequestSecurity
 {
-
     const COOKIE_NAME = "XSRF-TOKEN";
     const HEADER_NAME = "X-XSRF-TOKEN";
     public $token = null;
 
-    public function createNewToken()
+    public function createNewToken() :string
     {
         return UUID::v4();
     }

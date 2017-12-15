@@ -20,6 +20,11 @@ class XsrfPrevention extends Filter
     private $cookies;
 
     /**
+     * @var string
+     */
+    private $token;
+
+    /**
      * XsrfPrevention constructor.
      * @param Cookies $cookies
      */

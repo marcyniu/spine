@@ -1,7 +1,7 @@
 <?php
 namespace Spine;
 
-use PHPUnit_Framework_TestCase;
+use \PHPUnit\Framework\TestCase;
 use stdClass;
 
 class ContainerTest_FakeClass_Extends_StdClass extends stdClass
@@ -70,7 +70,7 @@ class TestClassA3 extends TestClassA2 {
 }
 
 
-class ContainerTest extends PHPUnit_Framework_TestCase
+class ContainerTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var Container
@@ -140,13 +140,13 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
     public function testResolveThrowsException()
     {
-        $this->setExpectedException("\\ReflectionException");
+        $this->expectException("\\ReflectionException");
         $this->container->resolve("Non existent class");
     }
 
     public function testResolveThrowsExceptionForSingleton()
     {
-        $this->setExpectedException("Spine\\ContainerException");
+        $this->expectException("Spine\\ContainerException");
         $this->container->resolve("Spine\\ContainerTest_FakeClass_Cannot_Instantiate");
     }
 
@@ -181,7 +181,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
      */
     public function testSignatureScalarParameter()
     {
-        $this->setExpectedException(
+        $this->expectException(
             "Spine\\ContainerException",
             "Method 'Spine\\ContainerTest:Spine\\{closure}()' has no type hint  and no default value for 'string' parameter, found in"
         );
@@ -200,7 +200,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
      */
     public function testSignatureUnknownClassParameter()
     {
-        $this->setExpectedException(
+        $this->expectException(
             "Spine\\ContainerException"
         );
 
@@ -215,7 +215,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
     }
 
     public function testChickenAndEggDetection() {
-        $this->setExpectedException(
+        $this->expectException(
             "Spine\\ContainerException"
         );
         $this->container->resolve("Spine\\TestClassA");
@@ -225,7 +225,7 @@ class ContainerTest extends PHPUnit_Framework_TestCase
 
         $factory = function(TestClassB $classB) { };
 
-        $this->setExpectedException("Spine\\ContainerException");
+        $this->expectException("Spine\\ContainerException");
         $this->container->registerTypeFactory("Spine\\TestClassB", $factory);
         $this->container->resolve("Spine\\TestClassB");
     }

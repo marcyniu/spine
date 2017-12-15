@@ -44,9 +44,9 @@ class LazyPdo extends \PDO
     /**
      * LazyPdo constructor.
      * @param string $dsn
-     * @param string $user
-     * @param string $pass
-     * @param array $options
+     * @param string|null $user
+     * @param string|null $pass
+     * @param array|null $options
      */
     public function __construct($dsn, $user = null, $pass = null, array $options = null)
     {

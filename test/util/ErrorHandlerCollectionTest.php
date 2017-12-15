@@ -6,15 +6,16 @@
 
 namespace Spine;
 
-require_once __DIR__ . '/../../src/util/ErrorHandlerCollection.php';
+use PHPUnit\Framework\TestCase;
 
-class ErrorHandlerCollectionTest extends \PHPUnit_Framework_TestCase
+class ErrorHandlerCollectionTest extends TestCase
 {
 
-    public function testAddErrorHandler() {
+    public function testAddErrorHandler()
+    {
 
         $handlerWasCalled = false;
-        $callable = function()  use (&$handlerWasCalled) {
+        $callable = function () use (&$handlerWasCalled) {
             $handlerWasCalled = true;
         };
 
@@ -27,15 +28,21 @@ class ErrorHandlerCollectionTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($handlerWasCalled);
     }
 
-    public function testAddExceptionHandler() {
+    public function testAddExceptionHandler()
+    {
 
         $handlerWasCalled = false;
-        $callable         = function()  use (&$handlerWasCalled) {
+        $callable = function () use (&$handlerWasCalled) {
             $handlerWasCalled = true;
         };
 
         $collection = new ErrorHandlerCollection();
-        $collection->register();
+
+        // remove the default printer
+        $prop = new \ReflectionProperty($collection, 'exceptionHandlers');
+        $prop->setAccessible(true);
+        $prop->setValue($collection, []);
+
         $collection->addExceptionHandler($callable);
 
         $collection->handleException(new \Exception('test'));

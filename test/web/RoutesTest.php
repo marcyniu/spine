@@ -1,7 +1,7 @@
 <?php
 namespace Spine\Web;
 
-use PHPUnit_Framework_TestCase;
+use \PHPUnit\Framework\TestCase;
 
 class TestRoutes extends Routes {
 
@@ -12,7 +12,7 @@ class TestRoutes extends Routes {
  *
  * @package Spine\Web
  */
-class RoutesTest extends PHPUnit_Framework_TestCase
+class RoutesTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var FakeRequest
@@ -43,7 +43,7 @@ class RoutesTest extends PHPUnit_Framework_TestCase
     public function testResolve()
     {
 
-        $this->setExpectedException('Spine\\Web\\HttpNotFoundException');
+        $this->expectException('Spine\\Web\\HttpNotFoundException');
         $this->request->fakePath = "/Fake/Routes/Are/Fun";
         $controllerName          = $this->routes->resolve();
 

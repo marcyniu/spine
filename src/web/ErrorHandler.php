@@ -9,6 +9,7 @@ namespace Spine\Web;
 use ErrorException;
 use Exception;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * @codeCoverageIgnore
@@ -78,7 +79,7 @@ class ErrorHandler
      *
      * For pretty error messages use the web server's ErrorDocument configurations.
      *
-     * @param Exception|HttpException $exception
+     * @param Throwable $exception
      *
      * @return void
      */
@@ -105,21 +106,7 @@ class ErrorHandler
 
         $this->headerSet = true;
 
-        if ($this->iniGetDisplayErrors() === true) {
 
-            if ($this->isJsonRequest()) {
-                $this->displayDeveloperJsonError($exception);
-            } else {
-                self::printException($exception);
-            }
-
-        } else {
-            if ($this->isJsonRequest()) {
-                $this->displayPrettyJsonError();
-            } else {
-                $this->displayPretty();
-            }
-        }
 
         $this->logException($exception);
     }
@@ -180,7 +167,7 @@ class ErrorHandler
             } else {
                 printf(
                     '<h1>%s</h1><p>%s</p>',
-                    htmlentities($this->httpResponseCode),
+                    htmlentities(strval($this->httpResponseCode)),
                     htmlentities($this->httpResponseMessage)
                 );
             }
@@ -267,7 +254,7 @@ class ErrorHandler
 					<tr><th colspan='3'>Unhandled Exception '" . get_class($exception) . "':  in '" . htmlentities(
                         $exception->getFile()
                     ) . "' on line <i>'" . htmlentities($exception->getLine()) . "'</i></th></tr>
-					<tr><th colspan='3'>" . htmlentities($exception->getMessage()) . "</th></tr>
+					<tr><th colspan='3'>" . htmlentities(strval($exception->getMessage())) . "</th></tr>
 					<tr><th colspan='3'>Call Stack</th></tr>
 					<tr><th>#</th><th>Function</th><th>Location</th></tr>
 					";
