@@ -9,6 +9,6 @@ use ReflectionException;
  *
  * @package Spine
  */
-class ContainerException extends \ReflectionException
+class ContainerException extends ReflectionException
 {
 }

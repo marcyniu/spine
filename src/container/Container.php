@@ -491,31 +491,3 @@ class Container
     }
 
 }
-
-class InstanceWrapper
-{
-    /**
-     * @var ReflectionClass
-     */
-    public $reflectionClass;
-
-    /**
-     * @var object
-     */
-    public $instance;
-
-    /**
-     * @var array
-     */
-    public $factoryMethodArguments = [];
-
-    /**
-     * @var array <Callable>
-     */
-    public $injectionMethods = [];
-
-    /**
-     * @var \ReflectionFunction|\ReflectionMethod
-     */
-    public $factoryMethod;
-}

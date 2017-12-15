@@ -10,7 +10,6 @@ use InvalidArgumentException;
  */
 class BCrypt
 {
-
     /**
      * @var int
      */
@@ -68,8 +67,7 @@ class BCrypt
         $bytes = openssl_random_pseudo_bytes(18); // bcrypt only needs 16, but due to encoding issues generate 2 extra
         $bytes = strtr(base64_encode($bytes), '+', '.'); // base65_encode uses + , translate to .
         return substr($bytes, 0, 22); // chop off any extra '=='
-
     }
-
+    
 }
 
