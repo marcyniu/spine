@@ -134,7 +134,7 @@ class Request
     /**
      * @param $key
      *
-     * @return string|array
+     * @return string|string[]
      * @throws HttpBadRequestException
      */
     public function requiredParam($key)
@@ -142,6 +142,36 @@ class Request
         $value = $this->param($key);
         if (is_null($value)) {
             throw new HttpBadRequestException("Parameter '$key' is missing.");
+        }
+        return $value;
+    }
+
+    /**
+     * @param $key
+     *
+     * @return string
+     * @throws HttpBadRequestException
+     */
+    public function requiredStringParam(string $key) :string
+    {
+        $value = $this->requiredParam($key);
+        if(!is_string($value)) {
+            throw new HttpBadRequestException("Parameter '$key' is not a string.");
+        }
+        return $value;
+    }
+
+    /**
+     * @param $key
+     *
+     * @return string[]
+     * @throws HttpBadRequestException
+     */
+    public function requiredArrayParam(string $key) :array
+    {
+        $value = $this->requiredParam($key);
+        if(!is_array($value)) {
+            throw new HttpBadRequestException("Parameter '$key' is not an array.");
         }
         return $value;
     }
