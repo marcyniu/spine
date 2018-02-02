@@ -35,7 +35,7 @@ abstract class Controller extends BaseController implements ControllerInterface
             throw new \RuntimeException("\$this->request is not set. Check if this controller's (" . get_class($this) . ") constructor was overridden.");
         }
 
-        $methodName = strtolower($this->request->type());
+        $methodName = $this->getMethodName();
 
         $this->callMethod($methodName);
     }
@@ -55,5 +55,13 @@ abstract class Controller extends BaseController implements ControllerInterface
 
         $this->container->callMethod($this, $methodName);
     }
+
+
+    protected function getMethodName()
+    {
+        $methodName = strtolower($this->request->type());
+        return $methodName;
+    }
+
 
 }

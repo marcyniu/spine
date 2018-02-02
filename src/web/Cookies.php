@@ -44,6 +44,7 @@ class Cookies
     public function delete($name, $path = null)
     {
         unset($_COOKIE[$name]);
-        $this->set($name, null, -1, $path);
+
+        $this->set($name, null, time() - 3600*24, $path);
     }
 } 

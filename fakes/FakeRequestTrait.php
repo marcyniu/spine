@@ -27,7 +27,6 @@ trait FakeRequestTrait
         return 80;
     }
 
-
     public function userIp()
     {
         return $this->fakeIp;
