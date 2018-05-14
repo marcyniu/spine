@@ -338,15 +338,19 @@ class Request
 
     public function setPathParams($pathParams)
     {
-        $this->pathParams = $pathParams;
+        $clean = array_map('urldecode', $pathParams);
+        $this->pathParams = $clean;
     }
 
-    public function resourceIdGiven()
+    public function resourceIdGiven() :bool
     {
-        $lastPathParamValue = "/" . end($this->pathParams);
+        $lastPathParamValue = end($this->pathParams);
         reset($this->pathParams);
-        $lastPartOfPath = substr($this->path(), -strlen($lastPathParamValue));
-        return ($lastPathParamValue == $lastPartOfPath);
+
+        $lastPartOfPath = basename($this->path());
+        $lastPartOfPathDecoded = urldecode($lastPartOfPath);
+
+        return ($lastPathParamValue === $lastPartOfPath || $lastPathParamValue === $lastPartOfPathDecoded);
 
     }
 
