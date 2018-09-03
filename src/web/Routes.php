@@ -125,21 +125,21 @@ abstract class Routes
      *
      * @var string
      */
-    private static $wildcard = '(?P<$1>([a-zA-Z0-9\.\,\-_%=:]+))';
+    private static $wildcard = '(?P<$1>([a-zA-Z0-9\.\,\-_%=:\(\)]+))';
 
     /**
      * The regular expression for an optional wildcard.
      *
      * @var string
      */
-    private static $optional = '(?:/(?P<$1>([a-zA-Z0-9\.\,\-_%=:]+))';
+    private static $optional = '(?:/(?P<$1>([a-zA-Z0-9\.\,\-_%=:\(\)]+))';
 
     /**
      * The regular expression for a leading optional wildcard.
      *
      * @var string
      */
-    private static $leadingOptional = '(\/$|^(?:(?P<$2>([a-zA-Z0-9\.\,\-_%=:]+)))';
+    private static $leadingOptional = '(\/$|^(?:(?P<$2>([a-zA-Z0-9\.\,\-_%=:\(\)]+)))';
 
     /**
      * Compile the given route string as a regular expression.
