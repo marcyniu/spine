@@ -202,15 +202,15 @@ class Request
         return isset($this->server['HTTP_USER_AGENT']) ? $this->server['HTTP_USER_AGENT'] : null;
     }
 
-    public function userIp()
+    public function userIp(): string
     {
-        $ip = null;
+        $ip = '';
         if (isset($this->server['HTTP_CLIENT_IP']) && !empty($this->server['HTTP_CLIENT_IP'])) {
             $ip = $this->server['HTTP_CLIENT_IP'];
         } elseif (isset($this->server['HTTP_X_FORWARDED_FOR']) && !empty($this->server['HTTP_X_FORWARDED_FOR'])) {
             $ip = $this->server['HTTP_X_FORWARDED_FOR'];
-        } else {
-            $ip = isset($this->server['REMOTE_ADDR']) ? $this->server['REMOTE_ADDR'] : null;
+        } elseif (isset($this->server['REMOTE_ADDR'])) {
+            $ip = $this->server['REMOTE_ADDR'];
         }
         return $ip;
     }
