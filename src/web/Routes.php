@@ -99,7 +99,11 @@ abstract class Routes
                 $stringKeys = array_filter(array_keys($pathParams), 'is_string');
                 $this->request->setPathParams(array_intersect_key($pathParams, array_flip($stringKeys)));
 
-                $controllerClassName = $this->getNameSpace() . "\\" . $route->controllerClassName;
+                //Old code for casses where controller in routes was a string:
+                //$controllerClassName = $this->getNameSpace() . "\\" . $route->controllerClassName;
+
+                //New way where controller is in routes as controllerName::class:
+                $controllerClassName = $route->controllerClassName;
 
                 return $controllerClassName;
             }
